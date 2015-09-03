@@ -256,9 +256,14 @@ $(function () {
     var a = points[0];
     var b = points[1];
     var c = points[2];
-    var d = 2 * (a.x * (b.y - c.y) + b.x * (c.y - a.y) + c.x * (a.y - b.y));
-    var ux = ((a.x * a.x + a.y * a.y) * (b.y - c.y) + (b.x * b.x + b.y * b.y) * (c.y - a.y) + (c.x * c.x + c.y * c.y) * (a.y - b.y)) / d;
-    var uy = ((a.x * a.x + a.y * a.y) * (c.x - b.x) + (b.x * b.x + b.y * b.y) * (a.x - c.x) + (c.x * c.x + c.y * c.y) * (b.x - a.x)) / d;
+    var d = 2 * (a.x * (b.y - c.y) + b.x * (c.y - a.y) 
+        + c.x * (a.y - b.y));
+    var ux = ((a.x * a.x + a.y * a.y) * (b.y - c.y) 
+        + (b.x * b.x + b.y * b.y) * (c.y - a.y) 
+        + (c.x * c.x + c.y * c.y) * (a.y - b.y)) / d;
+    var uy = ((a.x * a.x + a.y * a.y) * (c.x - b.x) 
+        + (b.x * b.x + b.y * b.y) * (a.x - c.x) 
+        + (c.x * c.x + c.y * c.y) * (b.x - a.x)) / d;
     var r = Math.sqrt(Math.pow(a.x - ux, 2) + Math.pow(a.y - uy, 2));
 
     function atan2(y, x) {
