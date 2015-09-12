@@ -109,9 +109,26 @@ function BsplineToBezierSpline(bspline) {
 }
 
 function parseNotes(osuObj) {
-  _.map(osuObj.HitObjects, function (x) {
-    if (x.type === 5) {
-      
+  return _.map(osuObj.HitObjects, function (x) {
+    var newObj = {
+      time: x.time,
+      newCombo: (x.type & 4) > 0
+    };
+
+    if ((x.type & 1) > 0) {
+      newObj.x = x.x;
+      newObj.y = x.y;
+    } else if ((x.type & 2) > 0) {
+      if (x.sliderType === 'P') {
+        newObj.points = x.curvePoints;
+        newObj.type = 'arc';
+      } else if (x.sliderType === 'B') {
+        newObj.points = BsplineToBezierSpline(x.curvePoints);
+        newObj.type = 'bezier';
+      }
+    } else if ((x.type & 8) > 0) {
+      newObj.endTime = x.endTime;
     }
+    return newObj;
   });
 }
