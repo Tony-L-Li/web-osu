@@ -1,8 +1,8 @@
-function Bezier(a, b, c, d) {
-  this.a = a;
-  this.b = b;
-  this.c = c;
-  this.d = d;
+function Bezier(bezier) {
+  this.a = bezier[0];
+  this.b = bezier[1];
+  this.c = bezier[2];
+  this.d = bezier[3];
 
   this.len = 100;
   this.arcLengths = new Array(this.len + 1);
@@ -67,11 +67,49 @@ Bezier.prototype = {
   }
 };
 
+function BezierSpline(bezierSpline) {
+  var self = this;
+  self.beziers = [];
+  self.arcLength = 0;
+
+  _.forEach(bezierSpline, function (x) {
+    self.beziers.push(new Bezier(x));
+    self.arcLength += self.beziers[self.beziers.length-1].arcLength();
+  });
+}
+
+BezierSpline.prototype = {
+  getPath: function (velocity) {
+    var self = this;
+    var path = [];
+    var curNode = 0;
+    var prevArclength = 0;
+
+    for (var i = 0; i < self.beziers.length; i++) {
+      _.forEach(self.beziers[i].arcLengths, function (x, index) {
+        if (curNode * velocity <= x + prevArclength) {
+          path.push({
+            x: self.beziers[i].x(index/100),
+            y: self.beziers[i].y(index/100)
+          });
+          curNode++;
+        }
+      });
+      prevArclength += self.beziers[i].arcLength();
+    }
+    return path;
+  }
+};
+
+function generateCurvePath(bezierSpline, velocity) {
+  return;
+}
+
 function BsplineToBezierSpline(bspline) {
   function interpolate(a, b, ratio) {
     return {
       x: a.x * (1 - ratio) + b.x * ratio,
-      y: a.y * (1 - ratio) + b.y * ratio
+        y: a.y * (1 - ratio) + b.y * ratio
     };
   }
 
@@ -112,7 +150,7 @@ function parseNotes(osuObj) {
   return _.map(osuObj.HitObjects, function (x) {
     var newObj = {
       time: x.time,
-      newCombo: (x.type & 4) > 0
+         newCombo: (x.type & 4) > 0
     };
 
     if ((x.type & 1) > 0) {
@@ -125,6 +163,9 @@ function parseNotes(osuObj) {
       } else if (x.sliderType === 'B') {
         newObj.points = BsplineToBezierSpline(x.curvePoints);
         newObj.type = 'bezier';
+        var tempB = new BezierSpline(newObj.points);
+        newObj.path = tempB.getPath(10);
+        newObj.arcLength = tempB.arcLength;
       }
     } else if ((x.type & 8) > 0) {
       newObj.endTime = x.endTime;
