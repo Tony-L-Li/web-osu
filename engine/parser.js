@@ -88,9 +88,10 @@ BezierSpline.prototype = {
     for (var i = 0; i < self.beziers.length; i++) {
       _.forEach(self.beziers[i].arcLengths, function (x, index) {
         if (curNode * velocity <= x + prevArclength) {
+          var curArcCount = self.beziers[i].len;
           path.push({
-            x: self.beziers[i].x(index/100),
-            y: self.beziers[i].y(index/100)
+            x: self.beziers[i].x(index/curArcCount),
+            y: self.beziers[i].y(index/curArcCount)
           });
           curNode++;
         }
@@ -101,8 +102,58 @@ BezierSpline.prototype = {
   }
 };
 
+function getArcPath(arc, velocity) {
+  var path = [];
+  
+  for (var i = 0; i <0; i++) {
+
+  }
+}
+
 function generateCurvePath(bezierSpline, velocity) {
   return;
+}
+
+function generateArcFromPoints(points) {
+  var a = points[0];
+  var b = points[1];
+  var c = points[2];
+  var d = 2 * (a.x * (b.y - c.y) + b.x * (c.y - a.y) 
+      + c.x * (a.y - b.y));
+  var ux = ((a.x * a.x + a.y * a.y) * (b.y - c.y) 
+      + (b.x * b.x + b.y * b.y) * (c.y - a.y) 
+      + (c.x * c.x + c.y * c.y) * (a.y - b.y)) / d;
+  var uy = ((a.x * a.x + a.y * a.y) * (c.x - b.x) 
+      + (b.x * b.x + b.y * b.y) * (a.x - c.x) 
+      + (c.x * c.x + c.y * c.y) * (b.x - a.x)) / d;
+  var r = Math.sqrt(Math.pow(a.x - ux, 2) + Math.pow(a.y - uy, 2));
+
+  function atan2(y, x) {
+    var theta = Math.atan2(y, x);
+    if (theta < 0) {
+      theta += Math.PI * 2;
+    }
+    return theta;
+  }
+
+  function tan(x,y) {
+    return Math.atan2(y,x);
+    //return (2*Math.PI+Math.atan2(y,x)) % (2*Math.PI);
+  }
+  var angleStart = tan(a.y - uy, a.x - ux);
+  var angleEnd = tan(c.y - uy, c.x - ux);
+  var angleMid = tan(b.y - uy, b.x - ux);
+  var wrapped = (angleMid > angleStart && angleMid > angleEnd) || (angleMid < angleStart && angleMid < angleEnd);
+  var counterclockwise = !((wrapped && angleStart > angleEnd) || (!wrapped && angleStart < angleEnd));
+  
+  return {
+    x: ux,
+    y: uy,
+    r: r,
+    startAngle: tan(c.x-ux, c.y-uy),
+    endAngle: tan( a.x-ux, a.y-uy),
+    ccw: counterclockwise
+  };
 }
 
 function BsplineToBezierSpline(bspline) {
@@ -160,6 +211,7 @@ function parseNotes(osuObj) {
       if (x.sliderType === 'P') {
         newObj.points = x.curvePoints;
         newObj.type = 'arc';
+        newObj.arc = generateArcFromPoints(newObj.points);
       } else if (x.sliderType === 'B') {
         newObj.points = BsplineToBezierSpline(x.curvePoints);
         newObj.type = 'bezier';

@@ -143,6 +143,7 @@ Engine.prototype = {
       v.save();
       v.scale(self.scale, self.scale);
     });
+
     //sets UI layer
     var testSlider = 11;
     self.c.ui.clearRect(0, 0, 512, 384);
@@ -154,6 +155,10 @@ Engine.prototype = {
       self.c.ui.bezierCurveTo(x[1].x, x[1].y, x[2].x, x[2].y, x[3].x, x[3].y);
     });
     
+    self.c.ui.stroke();
+    var arc = self.songData[14].arc;
+    self.c.ui.beginPath();
+    self.c.ui.arc(arc.x, arc.y, arc.r, arc.startAngle, arc.endAngle, arc.ccw);
     self.c.ui.stroke();
 
     _.forEach(self.songData[testSlider].path, function(x) {
