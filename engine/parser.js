@@ -104,10 +104,26 @@ BezierSpline.prototype = {
 
 function getArcPath(arc, velocity) {
   var path = [];
-  
-  for (var i = 0; i <0; i++) {
+  var wrapped = (arc.startAngle > arc.endAngle && !arc.ccw) || (arc.startAngle < arc.endAngle && arc.ccw);
+  var angle = Math.abs(arc.startAngle - arc.endAngle);
 
+  if (wrapped) {angle = 2*Math.PI - angle;}
+  console.log(Math.round(angle * arc.r / velocity));
+  for (var i = 0; i < Math.round(angle * arc.r / velocity); i++) {
+    var curAngle = arc.startAngle + ((velocity*i/arc.r) * -(2 * arc.ccw - 1));
+    path.push({
+      x: arc.x + Math.cos(curAngle)* arc.r,
+      y: arc.y + Math.sin(curAngle)* arc.r
+    }); 
   }
+
+  //push end point of arc
+  path.push({
+    x: arc.x + Math.cos(arc.endAngle)* arc.r,
+    y: arc.y + Math.sin(arc.endAngle)* arc.r
+  });
+
+  return path;
 }
 
 function generateCurvePath(bezierSpline, velocity) {
@@ -212,6 +228,7 @@ function parseNotes(osuObj) {
         newObj.points = x.curvePoints;
         newObj.type = 'arc';
         newObj.arc = generateArcFromPoints(newObj.points);
+        newObj.path = getArcPath(newObj.arc, 10);
       } else if (x.sliderType === 'B') {
         newObj.points = BsplineToBezierSpline(x.curvePoints);
         newObj.type = 'bezier';

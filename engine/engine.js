@@ -166,6 +166,12 @@ Engine.prototype = {
       self.c.ui.arc(x.x,x.y,2,0,2*Math.PI);
       self.c.ui.stroke();
     });
+
+    _.forEach(self.songData[14].path, function(x) {
+      self.c.ui.beginPath();
+      self.c.ui.arc(x.x, x.y, 2, 0, 2*Math.PI);
+      self.c.ui.stroke();
+    });
     /*
        var points = [{
        x:262,
