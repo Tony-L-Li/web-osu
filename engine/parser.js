@@ -78,6 +78,7 @@ function BezierSpline(bezierSpline) {
   });
 }
 
+
 BezierSpline.prototype = {
   getPath: function (velocity) {
     var self = this;
@@ -85,6 +86,7 @@ BezierSpline.prototype = {
     var curNode = 0;
     var prevArclength = 0;
 
+    //pushes path seperated by 'velocity'
     for (var i = 0; i < self.beziers.length; i++) {
       _.forEach(self.beziers[i].arcLengths, function (x, index) {
         if (curNode * velocity <= x + prevArclength) {
@@ -98,6 +100,12 @@ BezierSpline.prototype = {
       });
       prevArclength += self.beziers[i].arcLength();
     }
+
+    //pushes last node onto bezier path
+    path.push({
+      x: self.beziers[self.beziers.length-1].x(1),
+      y: self.beziers[self.beziers.length-1].y(1),
+    });
     return path;
   }
 };
@@ -108,7 +116,7 @@ function getArcPath(arc, velocity) {
   var angle = Math.abs(arc.startAngle - arc.endAngle);
 
   if (wrapped) {angle = 2*Math.PI - angle;}
-  console.log(Math.round(angle * arc.r / velocity));
+
   for (var i = 0; i < Math.round(angle * arc.r / velocity); i++) {
     var curAngle = arc.startAngle + ((velocity*i/arc.r) * -(2 * arc.ccw - 1));
     path.push({
@@ -214,6 +222,7 @@ function BsplineToBezierSpline(bspline) {
 }
 
 function parseNotes(osuObj) {
+  console.log(osuObj);
   return _.map(osuObj.HitObjects, function (x) {
     var newObj = {
       time: x.time,
