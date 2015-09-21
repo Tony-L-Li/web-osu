@@ -1,4 +1,4 @@
-function Engine (container, songData) {
+function Engine (container, songData, songUrl) {
   function createCanvas(name, layer) {
     return $('<canvas>', {
       class: 'game-canvas',
@@ -16,6 +16,9 @@ function Engine (container, songData) {
   var self = this;
   this.root = container;
   this.songData = songData;
+  this.audio = new Audio(songUrl);
+
+  this.currentTime = -1;
   this.c = {};
   this.e = {
     bg: createCanvas('bg', 0),
@@ -41,12 +44,14 @@ function Engine (container, songData) {
   });
 
   //setup
-  this.e.bg.css('background-color','#000');
+  this.e.bg.css('background-color','#333');
 
   //get all canvas contexts
   _.each(self.e, function(v, k) {
     self.c[k] = document.getElementById(v.attr('id')).getContext('2d');
   });
+  console.log(self.c);
+  this.ar = 9;
 }
 
 Engine.prototype = {
@@ -93,51 +98,31 @@ Engine.prototype = {
     ctx.arc(cLeft,cTop,0.5,0,2*Math.PI);
     ctx.stroke();
   },
-  start: function () {
+  start: function() {
     var self = this;
-    /*
-       function drawArcFromPoints(points, context) {
-       var a = points[0];
-       var b = points[1];
-       var c = points[2];
-       var d = 2 * (a.x * (b.y - c.y) + b.x * (c.y - a.y) 
-       + c.x * (a.y - b.y));
-       var ux = ((a.x * a.x + a.y * a.y) * (b.y - c.y) 
-       + (b.x * b.x + b.y * b.y) * (c.y - a.y) 
-       + (c.x * c.x + c.y * c.y) * (a.y - b.y)) / d;
-       var uy = ((a.x * a.x + a.y * a.y) * (c.x - b.x) 
-       + (b.x * b.x + b.y * b.y) * (a.x - c.x) 
-       + (c.x * c.x + c.y * c.y) * (b.x - a.x)) / d;
-       var r = Math.sqrt(Math.pow(a.x - ux, 2) + Math.pow(a.y - uy, 2));
 
-       function atan2(y, x) {
-       var theta = Math.atan2(y, x);
-       if (theta < 0) {
-       theta += Math.PI * 2;
-       }
-       return theta;
-       }
-       var angleStart = atan2(a.y - uy, a.x - ux);
-       var angleEnd = atan2(c.y - uy, c.x - ux);
-       var angleMid = atan2(b.y - uy, b.x - ux);
-       var wrapped = (angleMid > angleStart && angleMid > angleEnd) || (angleMid < angleStart && angleMid < angleEnd);
-       var counterclockwise = !((wrapped && angleStart > angleEnd) || (!wrapped && angleStart < angleEnd));
-       context.beginPath();
-       context.strokeStyle = '#FFF';
-       context.arc(a.x,a.y,1,0,2*Math.PI);
-       context.moveTo(b.x,b.y);
-       context.arc(b.x,b.y,1,0,2*Math.PI);
-       context.moveTo(c.x,c.y);
-       context.arc(c.x,c.y,1,0,2*Math.PI);
-       context.moveTo(ux,uy);
-       function tan(x,y) {
-       return Math.atan2(y,x);
-    //return (2*Math.PI+Math.atan2(y,x)) % (2*Math.PI);
-    }
-    context.arc(ux,uy, r, tan(c.x-ux, c.y-uy), tan(a.x-ux, a.y-uy)); 
-    context.stroke();
-    }
-    */
+    //queues for different stages of notes
+    self.entranceQueue = {
+      start: 0,
+      end: 0
+    };
+    self.playQueue = {
+      start: 0,
+      end: 0
+    };
+    self.exitQueue = {
+      start: 0,
+      end: 0
+    };
+
+    self.audio.volume = 0.00;
+    self.audio.play();
+    self.render();
+  },
+  render: function () {
+    var self = this;
+    var noteC = self.c.note;
+    var sliderC = self.c.slider;
 
     _.each(self.c, function(v, k) {
       v.save();
@@ -149,6 +134,40 @@ Engine.prototype = {
     self.c.ui.clearRect(0, 0, 512, 384);
     self.drawHealth(self.c.ui);
     self.drawUIScore(self.c.ui);
+
+    var curTime = self.audio.currentTime*1000;
+    //console.log(self.entranceQueue);
+    //configure entrance queue
+    while (true) {
+      //console.log('%f %f',self.songData[self.entranceQueue.start].time,curTime);
+      if (self.songData[self.entranceQueue.start].time <= curTime) {
+        self.entranceQueue.start++;
+      } else {
+        break;
+      }
+    }
+    while (true) {
+      if (self.songData[self.entranceQueue.end].time <= curTime + self.ar * 30) {
+        self.entranceQueue.end++;
+      } else {
+        break;
+      }
+    }
+
+    //renders entrance
+    for (var i = self.entranceQueue.start; i < self.entranceQueue.end; i++) {
+      var curNote = self.songData[i];
+
+      if (curNote.sliderType == null) {
+        noteC.beginPath();
+        noteC.arc(curNote.x, curNote.y, 10, 0, Math.PI);
+        noteC.stroke();
+      } else {
+
+      }
+    }
+
+    /*
     self.c.ui.beginPath();
     self.c.ui.moveTo(self.songData[testSlider].points[0][0].x, self.songData[testSlider].points[0][0].y);
     _.forEach(self.songData[testSlider].points, function(x) {
@@ -172,24 +191,23 @@ Engine.prototype = {
       self.c.ui.arc(x.x, x.y, 2, 0, 2*Math.PI);
       self.c.ui.stroke();
     });
-    /*
-       var points = [{
-       x:262,
-       y:200
-       },{
-       x:260,
-       y:252
-       },{
-       x:288,
-       y:292
-       }];
-       drawArcFromPoints(points, self.c.ui);
-       */
+
+    self.c.ui.beginPath();
+    self.c.ui.moveTo(self.songData[0].points[0].x, self.songData[0].points[0].y);
+    self.c.ui.lineTo(self.songData[0].points[1].x, self.songData[0].points[1].y);
+    self.c.ui.stroke();
+
+    _.forEach(self.songData[0].path, function(x) {
+      self.c.ui.beginPath();
+      self.c.ui.arc(x.x, x.y, 2, 0, 2*Math.PI);
+      self.c.ui.stroke();
+    });
+*/
     _.each(self.c, function(v, k) {
       v.restore();
     });
-
-    requestAnimationFrame(self.start.bind(self));
+    
+    requestAnimationFrame(self.render.bind(self));
   }
 };
 

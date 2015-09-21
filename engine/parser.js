@@ -110,12 +110,19 @@ BezierSpline.prototype = {
   }
 };
 
-function getArcPath(arc, velocity) {
-  var path = [];
-  var wrapped = (arc.startAngle > arc.endAngle && !arc.ccw) || (arc.startAngle < arc.endAngle && arc.ccw);
-  var angle = Math.abs(arc.startAngle - arc.endAngle);
+function getAngleFromArc(start, end, isCounterClockwise) {
+  var wrapped = (start > end && !isCounterClockwise) 
+    || (start < end && isCounterClockwise);
+  var angle = Math.abs(start - end);
 
   if (wrapped) {angle = 2*Math.PI - angle;}
+
+  return angle;
+}
+
+function getArcPath(arc, velocity) {
+  var path = [];
+  var angle = getAngleFromArc(arc.startAngle, arc.endAngle, arc.ccw);
 
   for (var i = 0; i < Math.round(angle * arc.r / velocity); i++) {
     var curAngle = arc.startAngle + ((velocity*i/arc.r) * -(2 * arc.ccw - 1));
@@ -134,8 +141,32 @@ function getArcPath(arc, velocity) {
   return path;
 }
 
-function generateCurvePath(bezierSpline, velocity) {
-  return;
+function lineDistance(a, b) {
+    var xs = 0;
+    var ys = 0;
+
+    xs = b.x - a.x;
+    xs = xs * xs;
+    ys = b.y - a.y;
+    ys = ys * ys;
+
+    return Math.sqrt(xs+ys);
+}
+
+function getLinearPath(line, velocity) {
+  var path = [];
+  var length = lineDistance(line[0], line[1]);
+
+  for (var i = 0; i < length/velocity; i++) {
+    path.push({
+      x: line[0].x + ((line[1].x - line[0].x) * i / velocity),
+      y: line[0].y + ((line[1].y - line[0].y) * i / velocity),
+    });
+  }
+
+  path.push(line[1]);
+
+  return path;
 }
 
 function generateArcFromPoints(points) {
@@ -222,11 +253,11 @@ function BsplineToBezierSpline(bspline) {
 }
 
 function parseNotes(osuObj) {
-  console.log(osuObj);
+  console.log(osuObj.HitObjects);
   return _.map(osuObj.HitObjects, function (x) {
     var newObj = {
       time: x.time,
-         newCombo: (x.type & 4) > 0
+      newCombo: (x.type & 4) > 0
     };
 
     if ((x.type & 1) > 0) {
@@ -238,12 +269,18 @@ function parseNotes(osuObj) {
         newObj.type = 'arc';
         newObj.arc = generateArcFromPoints(newObj.points);
         newObj.path = getArcPath(newObj.arc, 10);
+        newObj.length = getAngleFromArc(newObj.arc.startAngle, newObj.arc.endAngle, newObj.arc.ccw) * newObj.arc.r;
       } else if (x.sliderType === 'B') {
         newObj.points = BsplineToBezierSpline(x.curvePoints);
         newObj.type = 'bezier';
         var tempB = new BezierSpline(newObj.points);
         newObj.path = tempB.getPath(10);
-        newObj.arcLength = tempB.arcLength;
+        newObj.length = tempB.arcLength;
+      } else if (x.sliderType === 'L') {
+        newObj.points = x.curvePoints;
+        newObj.type = 'line';
+        newObj.path = getLinearPath(newObj.points, 10);
+        newObj.length = lineDistance(newObj.points[0], newObj.points[1]);
       }
     } else if ((x.type & 8) > 0) {
       newObj.endTime = x.endTime;
