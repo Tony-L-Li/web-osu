@@ -6,10 +6,10 @@ function Engine (container, songData, songUrl) {
       css: {
         'z-index': layer  
       },
-           attr: {
-             height: container.height() + 'px',
-           width: container.height()*1.333 + 'px'
-           }
+      attr: {
+        height: container.height() + 'px',
+        width: container.height()*1.333 + 'px'
+      }
     });  
   }
 
@@ -27,7 +27,6 @@ function Engine (container, songData, songUrl) {
     note: createCanvas('note', 3),
     cursorArea: createCanvas('cursor-area', 4)
   };
-  console.log(songData);
   this.scale = this.root.height()/384;
 
   _.forOwn(this.e,function (x) {x.appendTo(self.root);}); 
@@ -39,7 +38,7 @@ function Engine (container, songData, songUrl) {
         'height': self.root.height() + 'px',
         'width': self.root.height()*1.333 + 'px'
       });
-    }); 
+    });
     self.scale = self.root.height()/384;
   });
 
@@ -50,8 +49,8 @@ function Engine (container, songData, songUrl) {
   _.each(self.e, function(v, k) {
     self.c[k] = document.getElementById(v.attr('id')).getContext('2d');
   });
-  console.log(self.c);
   this.ar = 9;
+  this.arConst = 30;
 }
 
 Engine.prototype = {
@@ -101,6 +100,7 @@ Engine.prototype = {
   start: function() {
     var self = this;
 
+    console.log(self.songData);
     //queues for different stages of notes
     self.entranceQueue = {
       start: 0,
@@ -116,10 +116,55 @@ Engine.prototype = {
     };
 
     self.audio.volume = 0.00;
+    self.audio.currentTime = 9.5;
     self.audio.play();
     self.render();
   },
   render: function () {
+    function drawCircle(x, y, number, size, opacity, color, ctx) {
+      ctx.save();
+      ctx.globalAlpha = opacity;
+      ctx.fillStyle = '#c6c6c6';
+      ctx.beginPath();
+      ctx.arc(x, y, size, 0, 2*Math.PI);
+      ctx.fill();
+
+      ctx.strokeStyle = '#aaaaaa';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(x, y, size, 0, 2*Math.PI);
+      ctx.stroke();
+
+      ctx.font = '25px Nova Square';
+      ctx.fillStyle = '#e6e6e6';
+      ctx.textAlign="center"; 
+      ctx.textBaseline = 'middle';
+      ctx.fillText(number.toString(),x,y);
+      ctx.restore();
+    }
+
+    function drawLine(points, size, opacity, color, ctx) {
+      ctx.save();
+      ctx.lineCap = "round";
+      ctx.globalAlpha = opacity;
+      ctx.lineWidth = 2*size;
+      ctx.strokeStyle = '#aaaaaa';
+      ctx.beginPath();
+      ctx.moveTo(points[0].x, points[0].y);
+      ctx.lineTo(points[1].x, points[1].y);
+      ctx.stroke();
+
+      ctx.globalAlpha = opacity;
+      ctx.lineWidth = 2*size - 6;
+      ctx.strokeStyle = '#c6c6c6';
+      ctx.beginPath();
+      ctx.moveTo(points[0].x, points[0].y);
+      ctx.lineTo(points[1].x, points[1].y);
+      ctx.stroke();
+
+      ctx.restore();
+    }
+
     var self = this;
     var noteC = self.c.note;
     var sliderC = self.c.slider;
@@ -128,6 +173,9 @@ Engine.prototype = {
       v.save();
       v.scale(self.scale, self.scale);
     });
+
+    self.c.note.clearRect(0, 0, 512, 384);
+    self.c.slider.clearRect(0, 0, 512, 384);
 
     //sets UI layer
     var testSlider = 11;
@@ -139,7 +187,7 @@ Engine.prototype = {
     //console.log(self.entranceQueue);
     //configure entrance queue
     while (true) {
-      //console.log('%f %f',self.songData[self.entranceQueue.start].time,curTime);
+      //console.log('%f %f',self.entranceQueue.start, self.entranceQueue.end);
       if (self.songData[self.entranceQueue.start].time <= curTime) {
         self.entranceQueue.start++;
       } else {
@@ -147,7 +195,7 @@ Engine.prototype = {
       }
     }
     while (true) {
-      if (self.songData[self.entranceQueue.end].time <= curTime + self.ar * 30) {
+      if (self.songData[self.entranceQueue.end].time <= curTime + self.ar * self.arConst) {
         self.entranceQueue.end++;
       } else {
         break;
@@ -157,15 +205,30 @@ Engine.prototype = {
     //renders entrance
     for (var i = self.entranceQueue.start; i < self.entranceQueue.end; i++) {
       var curNote = self.songData[i];
-
-      if (curNote.sliderType == null) {
-        noteC.beginPath();
-        noteC.arc(curNote.x, curNote.y, 10, 0, Math.PI);
-        noteC.stroke();
+      var opacity =  1 - ((self.songData[i].time - curTime) / (self.ar * self.arConst));
+      opacity = Math.pow(opacity, 2.5);
+      if (curNote.type == null) {
+        drawCircle(curNote.x, curNote.y, 1, 20, opacity, '#ffffff', self.c.note);
       } else {
-
+        switch (curNote.type) {
+          case 'line':
+            drawLine(curNote.points, 20, opacity, '#ffffff', self.c.slider);
+            break;
+        }
+        drawCircle(curNote.points[0].x, curNote.points[0].y, 1, 20, opacity, '#ffffff', self.c.note);
       }
     }
+
+    //clears canvas
+
+    _.each(self.c, function(v, k) {
+      v.restore();
+    });
+    
+    requestAnimationFrame(self.render.bind(self));
+  }
+};
+
 
     /*
     self.c.ui.beginPath();
@@ -203,15 +266,6 @@ Engine.prototype = {
       self.c.ui.stroke();
     });
 */
-    _.each(self.c, function(v, k) {
-      v.restore();
-    });
-    
-    requestAnimationFrame(self.render.bind(self));
-  }
-};
-
-
 
 
 
