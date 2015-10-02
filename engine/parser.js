@@ -9,13 +9,13 @@ function Bezier(bezier) {
   this.arcLengths[0] = 0;
 
   var ox = this.x(0),
-      oy = this.y(0),
-      clen = 0;
+    oy = this.y(0),
+    clen = 0;
   for (var i = 1; i <= this.len; i += 1) {
     var x = this.x(i * 0.01),
       y = this.y(i * 0.01);
     var dx = ox - x,
-        dy = oy - y;
+      dy = oy - y;
     clen += Math.sqrt(dx * dx + dy * dy);
     this.arcLengths[i] = clen;
     ox = x, oy = y;
@@ -24,11 +24,11 @@ function Bezier(bezier) {
 }
 
 Bezier.prototype = {
-  map: function (s) {
+  map: function(s) {
     var targetLength = s;
     var low = 0,
-        high = this.len,
-        index = 0;
+      high = this.len,
+      index = 0;
     while (low < high) {
       index = low + (((high - low) / 2) | 0);
       if (this.arcLengths[index] < targetLength) {
@@ -50,19 +50,19 @@ Bezier.prototype = {
       return (index + (targetLength - lengthBefore) / (this.arcLengths[index + 1] - lengthBefore)) / this.len;
     }
   },
-  arcLength: function () {
+  arcLength: function() {
     return this.arcLengths[this.len];
   },
-  mx: function (s) {
+  mx: function(s) {
     return this.x(this.map(s));
   },
-  my: function (s) {
+  my: function(s) {
     return this.y(this.map(s));
   },
-  x: function (t) {
+  x: function(t) {
     return ((1 - t) * (1 - t) * (1 - t)) * this.a.x + 3 * ((1 - t) * (1 - t)) * t * this.b.x + 3 * (1 - t) * (t * t) * this.c.x + (t * t * t) * this.d.x;
   },
-  y: function (t) {
+  y: function(t) {
     return ((1 - t) * (1 - t) * (1 - t)) * this.a.y + 3 * ((1 - t) * (1 - t)) * t * this.b.y + 3 * (1 - t) * (t * t) * this.c.y + (t * t * t) * this.d.y;
   }
 };
@@ -72,15 +72,15 @@ function BezierSpline(bezierSpline) {
   self.beziers = [];
   self.arcLength = 0;
 
-  _.forEach(bezierSpline, function (x) {
+  _.forEach(bezierSpline, function(x) {
     self.beziers.push(new Bezier(x));
-    self.arcLength += self.beziers[self.beziers.length-1].arcLength();
+    self.arcLength += self.beziers[self.beziers.length - 1].arcLength();
   });
 }
 
 
 BezierSpline.prototype = {
-  getPath: function (velocity) {
+  getPath: function(velocity) {
     var self = this;
     var path = [];
     var curNode = 0;
@@ -88,12 +88,12 @@ BezierSpline.prototype = {
 
     //pushes path seperated by 'velocity'
     for (var i = 0; i < self.beziers.length; i++) {
-      _.forEach(self.beziers[i].arcLengths, function (x, index) {
+      _.forEach(self.beziers[i].arcLengths, function(x, index) {
         if (curNode * velocity <= x + prevArclength) {
           var curArcCount = self.beziers[i].len;
           path.push({
-            x: self.beziers[i].x(index/curArcCount),
-            y: self.beziers[i].y(index/curArcCount)
+            x: self.beziers[i].x(index / curArcCount),
+            y: self.beziers[i].y(index / curArcCount)
           });
           curNode++;
         }
@@ -103,19 +103,20 @@ BezierSpline.prototype = {
 
     //pushes last node onto bezier path
     path.push({
-      x: self.beziers[self.beziers.length-1].x(1),
-      y: self.beziers[self.beziers.length-1].y(1),
+      x: self.beziers[self.beziers.length - 1].x(1),
+      y: self.beziers[self.beziers.length - 1].y(1),
     });
     return path;
   }
 };
 
 function getAngleFromArc(start, end, isCounterClockwise) {
-  var wrapped = (start > end && !isCounterClockwise) 
-    || (start < end && isCounterClockwise);
+  var wrapped = (start > end && !isCounterClockwise) || (start < end && isCounterClockwise);
   var angle = Math.abs(start - end);
 
-  if (wrapped) {angle = 2*Math.PI - angle;}
+  if (wrapped) {
+    angle = 2 * Math.PI - angle;
+  }
 
   return angle;
 }
@@ -125,39 +126,39 @@ function getArcPath(arc, velocity) {
   var angle = getAngleFromArc(arc.startAngle, arc.endAngle, arc.ccw);
 
   for (var i = 0; i < Math.round(angle * arc.r / velocity); i++) {
-    var curAngle = arc.startAngle + ((velocity*i/arc.r) * -(2 * arc.ccw - 1));
+    var curAngle = arc.startAngle + ((velocity * i / arc.r) * -(2 * arc.ccw - 1));
     path.push({
-      x: arc.x + Math.cos(curAngle)* arc.r,
-      y: arc.y + Math.sin(curAngle)* arc.r
-    }); 
+      x: arc.x + Math.cos(curAngle) * arc.r,
+      y: arc.y + Math.sin(curAngle) * arc.r
+    });
   }
 
   //push end point of arc
   path.push({
-    x: arc.x + Math.cos(arc.endAngle)* arc.r,
-    y: arc.y + Math.sin(arc.endAngle)* arc.r
+    x: arc.x + Math.cos(arc.endAngle) * arc.r,
+    y: arc.y + Math.sin(arc.endAngle) * arc.r
   });
 
   return path;
 }
 
 function lineDistance(a, b) {
-    var xs = 0;
-    var ys = 0;
+  var xs = 0;
+  var ys = 0;
 
-    xs = b.x - a.x;
-    xs = xs * xs;
-    ys = b.y - a.y;
-    ys = ys * ys;
+  xs = b.x - a.x;
+  xs = xs * xs;
+  ys = b.y - a.y;
+  ys = ys * ys;
 
-    return Math.sqrt(xs+ys);
+  return Math.sqrt(xs + ys);
 }
 
 function getLinearPath(line, velocity) {
   var path = [];
   var length = lineDistance(line[0], line[1]);
 
-  for (var i = 0; i < length/velocity; i++) {
+  for (var i = 0; i < length / velocity; i++) {
     path.push({
       x: line[0].x + ((line[1].x - line[0].x) * i / velocity),
       y: line[0].y + ((line[1].y - line[0].y) * i / velocity),
@@ -173,14 +174,9 @@ function generateArcFromPoints(points) {
   var a = points[0];
   var b = points[1];
   var c = points[2];
-  var d = 2 * (a.x * (b.y - c.y) + b.x * (c.y - a.y) 
-      + c.x * (a.y - b.y));
-  var ux = ((a.x * a.x + a.y * a.y) * (b.y - c.y) 
-      + (b.x * b.x + b.y * b.y) * (c.y - a.y) 
-      + (c.x * c.x + c.y * c.y) * (a.y - b.y)) / d;
-  var uy = ((a.x * a.x + a.y * a.y) * (c.x - b.x) 
-      + (b.x * b.x + b.y * b.y) * (a.x - c.x) 
-      + (c.x * c.x + c.y * c.y) * (b.x - a.x)) / d;
+  var d = 2 * (a.x * (b.y - c.y) + b.x * (c.y - a.y) + c.x * (a.y - b.y));
+  var ux = ((a.x * a.x + a.y * a.y) * (b.y - c.y) + (b.x * b.x + b.y * b.y) * (c.y - a.y) + (c.x * c.x + c.y * c.y) * (a.y - b.y)) / d;
+  var uy = ((a.x * a.x + a.y * a.y) * (c.x - b.x) + (b.x * b.x + b.y * b.y) * (a.x - c.x) + (c.x * c.x + c.y * c.y) * (b.x - a.x)) / d;
   var r = Math.sqrt(Math.pow(a.x - ux, 2) + Math.pow(a.y - uy, 2));
 
   function atan2(y, x) {
@@ -191,8 +187,8 @@ function generateArcFromPoints(points) {
     return theta;
   }
 
-  function tan(x,y) {
-    return Math.atan2(y,x);
+  function tan(x, y) {
+    return Math.atan2(y, x);
     //return (2*Math.PI+Math.atan2(y,x)) % (2*Math.PI);
   }
   var angleStart = tan(a.y - uy, a.x - ux);
@@ -200,13 +196,13 @@ function generateArcFromPoints(points) {
   var angleMid = tan(b.y - uy, b.x - ux);
   var wrapped = (angleMid > angleStart && angleMid > angleEnd) || (angleMid < angleStart && angleMid < angleEnd);
   var counterclockwise = !((wrapped && angleStart > angleEnd) || (!wrapped && angleStart < angleEnd));
-  
+
   return {
     x: ux,
     y: uy,
     r: r,
-    startAngle: tan(c.x-ux, c.y-uy),
-    endAngle: tan( a.x-ux, a.y-uy),
+    startAngle: tan(c.x - ux, c.y - uy),
+    endAngle: tan(a.x - ux, a.y - uy),
     ccw: counterclockwise
   };
 }
@@ -215,7 +211,7 @@ function BsplineToBezierSpline(bspline) {
   function interpolate(a, b, ratio) {
     return {
       x: a.x * (1 - ratio) + b.x * ratio,
-        y: a.y * (1 - ratio) + b.y * ratio
+      y: a.y * (1 - ratio) + b.y * ratio
     };
   }
 
@@ -254,12 +250,23 @@ function BsplineToBezierSpline(bspline) {
 
 function parseNotes(osuObj) {
   console.log(osuObj.HitObjects);
-  return _.map(osuObj.HitObjects, function (x) {
+  var colors = osuObj.Colors;
+  var curColor = 0;
+  var curNumber = 1;
+
+  osuObj.HitObjects = _.map(osuObj.HitObjects, function(x) {
     var newObj = {
       time: x.time,
       newCombo: (x.type & 4) > 0
     };
 
+    newObj.color = colors[curColor];
+    newObj.number = curNumber;
+    curNumber++;
+    if ((x.type & 4) > 0) {
+      curColor = (curColor + 1) % colors.length;
+      curNumber = 1;
+    }
     if ((x.type & 1) > 0) {
       newObj.x = x.x;
       newObj.y = x.y;
@@ -287,4 +294,5 @@ function parseNotes(osuObj) {
     }
     return newObj;
   });
+  return osuObj;
 }
