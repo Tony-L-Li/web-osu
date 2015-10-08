@@ -47,7 +47,8 @@ Bezier.prototype = {
       return index / this.len;
 
     } else {
-      return (index + (targetLength - lengthBefore) / (this.arcLengths[index + 1] - lengthBefore)) / this.len;
+      return (index + (targetLength - lengthBefore) / (this.arcLengths[
+        index + 1] - lengthBefore)) / this.len;
     }
   },
   arcLength: function() {
@@ -60,10 +61,14 @@ Bezier.prototype = {
     return this.y(this.map(s));
   },
   x: function(t) {
-    return ((1 - t) * (1 - t) * (1 - t)) * this.a.x + 3 * ((1 - t) * (1 - t)) * t * this.b.x + 3 * (1 - t) * (t * t) * this.c.x + (t * t * t) * this.d.x;
+    return ((1 - t) * (1 - t) * (1 - t)) * this.a.x + 3 * ((1 - t) * (1 - t)) *
+      t * this.b.x + 3 * (1 - t) * (t * t) * this.c.x + (t * t * t) * this.d
+      .x;
   },
   y: function(t) {
-    return ((1 - t) * (1 - t) * (1 - t)) * this.a.y + 3 * ((1 - t) * (1 - t)) * t * this.b.y + 3 * (1 - t) * (t * t) * this.c.y + (t * t * t) * this.d.y;
+    return ((1 - t) * (1 - t) * (1 - t)) * this.a.y + 3 * ((1 - t) * (1 - t)) *
+      t * this.b.y + 3 * (1 - t) * (t * t) * this.c.y + (t * t * t) * this.d
+      .y;
   }
 };
 
@@ -111,7 +116,8 @@ BezierSpline.prototype = {
 };
 
 function getAngleFromArc(start, end, isCounterClockwise) {
-  var wrapped = (start > end && !isCounterClockwise) || (start < end && isCounterClockwise);
+  var wrapped = (start > end && !isCounterClockwise) || (start < end &&
+    isCounterClockwise);
   var angle = Math.abs(start - end);
 
   if (wrapped) {
@@ -175,8 +181,10 @@ function generateArcFromPoints(points) {
   var b = points[1];
   var c = points[2];
   var d = 2 * (a.x * (b.y - c.y) + b.x * (c.y - a.y) + c.x * (a.y - b.y));
-  var ux = ((a.x * a.x + a.y * a.y) * (b.y - c.y) + (b.x * b.x + b.y * b.y) * (c.y - a.y) + (c.x * c.x + c.y * c.y) * (a.y - b.y)) / d;
-  var uy = ((a.x * a.x + a.y * a.y) * (c.x - b.x) + (b.x * b.x + b.y * b.y) * (a.x - c.x) + (c.x * c.x + c.y * c.y) * (b.x - a.x)) / d;
+  var ux = ((a.x * a.x + a.y * a.y) * (b.y - c.y) + (b.x * b.x + b.y * b.y) * (
+    c.y - a.y) + (c.x * c.x + c.y * c.y) * (a.y - b.y)) / d;
+  var uy = ((a.x * a.x + a.y * a.y) * (c.x - b.x) + (b.x * b.x + b.y * b.y) * (
+    a.x - c.x) + (c.x * c.x + c.y * c.y) * (b.x - a.x)) / d;
   var r = Math.sqrt(Math.pow(a.x - ux, 2) + Math.pow(a.y - uy, 2));
 
   function atan2(y, x) {
@@ -194,8 +202,10 @@ function generateArcFromPoints(points) {
   var angleStart = tan(a.y - uy, a.x - ux);
   var angleEnd = tan(c.y - uy, c.x - ux);
   var angleMid = tan(b.y - uy, b.x - ux);
-  var wrapped = (angleMid > angleStart && angleMid > angleEnd) || (angleMid < angleStart && angleMid < angleEnd);
-  var counterclockwise = !((wrapped && angleStart > angleEnd) || (!wrapped && angleStart < angleEnd));
+  var wrapped = (angleMid > angleStart && angleMid > angleEnd) || (angleMid <
+    angleStart && angleMid < angleEnd);
+  var counterclockwise = !((wrapped && angleStart > angleEnd) || (!wrapped &&
+    angleStart < angleEnd));
 
   return {
     x: ux,
@@ -276,7 +286,8 @@ function parseNotes(osuObj) {
         newObj.type = 'arc';
         newObj.arc = generateArcFromPoints(newObj.points);
         newObj.path = getArcPath(newObj.arc, 10);
-        newObj.length = getAngleFromArc(newObj.arc.startAngle, newObj.arc.endAngle, newObj.arc.ccw) * newObj.arc.r;
+        newObj.length = getAngleFromArc(newObj.arc.startAngle, newObj.arc.endAngle,
+          newObj.arc.ccw) * newObj.arc.r;
       } else if (x.sliderType === 'B') {
         newObj.points = BsplineToBezierSpline(x.curvePoints);
         newObj.type = 'bezier';
