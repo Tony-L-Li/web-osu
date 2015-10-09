@@ -160,14 +160,16 @@ Engine.prototype = {
     var scaledArea = self.maxArea * self.scale;
     self.c.note.clearRect(0, 0, scaledArea, scaledArea);
     self.c.slider.clearRect(0, 0, scaledArea, scaledArea);
+    self.c.buffer.clearRect(0, 0, scaledArea, scaledArea);
 
     _.each(self.c, function(v, k) {
       v.save();
       if (k === 'note' || k === 'slider' || k === 'cursor-area' || k ===
         'buffer') {
-        v.translate(50 * self.scale, 90 * self.scale);
-        v.scale(self.scale, self.scale);
-
+        if (k === 'buffer') {
+          v.translate(50 * self.scale, 90 * self.scale);
+          v.scale(self.scale, self.scale);
+        }
       } else {
         v.scale(self.scale, self.scale);
       }
@@ -179,7 +181,7 @@ Engine.prototype = {
     self.drawUIScore(self.c.ui);
 
 
-    var fadeInTime = self.ar * self.arConst / 2;
+    var fadeInTime = self.ar * self.arConst;
     var noteSolidTime = self.ar * self.arConst / 2;
     var fadeOutTime = self.ar * self.arConst / 2;
     var sliderSolidFactor = 2;
@@ -211,12 +213,12 @@ Engine.prototype = {
     }
 
     while (true) {
-      var curSongType = self.songData[self.playQueue.start].type;
-      var curNoteTime = self.songData[self.playQueue.start].time;
+      var curSong = self.songData[self.playQueue.start];
+      var curSongType = curSong.type;
+      var curNoteTime = curSong.time;
       var sliderTime;
 
-      if (curSongType != null) sliderTime = self.songData[self.playQueue.start]
-        .length * sliderSolidFactor;
+      if (curSongType != null) sliderTime = curSong.length * sliderSolidFactor * curSong.repeat;
 
       if ((curSongType == null && curNoteTime + noteSolidTime <= curTime) ||
         (curSongType != null && curNoteTime + noteSolidTime + sliderTime <=
@@ -231,12 +233,12 @@ Engine.prototype = {
     }
 
     while (true) {
-      var curSongType = self.songData[self.exitQueue.start].type;
-      var curNoteTime = self.songData[self.exitQueue.start].time;
+      var curSong = self.songData[self.exitQueue.start];
+      var curSongType = curSong.type;
+      var curNoteTime = curSong.time;
       var sliderTime;
 
-      if (curSongType != null) sliderTime = self.songData[self.exitQueue.start]
-        .length * sliderSolidFactor;
+      if (curSongType != null) sliderTime = curSong.length * sliderSolidFactor * curSong.repeat;
 
       if ((curSongType == null && curNoteTime + noteSolidTime + fadeOutTime <=
           curTime) ||
@@ -248,57 +250,52 @@ Engine.prototype = {
         break;
       }
     }
-    //var buffer = self.c.buffer;
-    //var bufferCanvas = self.e.buffer[0];
-    var bufferCanvas = document.createElement('canvas');
-    bufferCanvas.width = 512;
-    bufferCanvas.height = 384;
-
-    var buffer = bufferCanvas.getContext('2d');
+    var buffer = self.c.buffer;
+    var bufferCanvas = self.e.buffer[0];
 
 
     // RENDER NOTES
-    // Everything has be rendered in reverse order
-
-    //renders exitQueue
+    // Everything has be rendered in reverse order (Kind of... not sure... it works...)
     function drawNotesIteration(curNote, opacity) {
       if (curNote.type == null) {
-        drawCircle(curNote.x, curNote.y, curNote.number, self.circleSize, 1,
-          curNote.color, noteC);
+        drawCircle(curNote.x, curNote.y, curNote.number, self.circleSize,
+          curNote.color, buffer);
       } else {
         switch (curNote.type) {
           case 'line':
-            drawLine(curNote.points, self.circleSize, 1, '#ffffff', sliderC);
+            drawLine(curNote.points, self.circleSize, '#ffffff', buffer);
             break;
           case 'arc':
-            drawArc(curNote.arc, self.circleSize, 1, '#ffffff', sliderC);
+            drawArc(curNote.arc, self.circleSize, '#ffffff', buffer);
             break;
           case 'bezier':
-            drawBezier(curNote.points, self.circleSize, 1, '#ffffff', sliderC);
+            drawBezier(curNote.points, self.circleSize, '#ffffff', buffer);
             break;
         }
         if (curNote.type === 'bezier') {
+          var lastElem = curNote.points[curNote.points.length - 1];
+          lastElem = lastElem[lastElem.length - 1];
+          drawCircle(lastElem.x, lastElem.y, '', self.circleSize, curNote.color,
+            buffer);
           drawCircle(curNote.points[0][0].x, curNote.points[0][0].y,
-            curNote.number, self.circleSize, 1, curNote.color, noteC);
+            curNote.number, self.circleSize, curNote.color, buffer);
         } else {
+          var lastElem = curNote.points[curNote.points.length - 1];
+          drawCircle(lastElem.x, lastElem.y, '', self.circleSize, curNote.color, buffer);
           drawCircle(curNote.points[0].x, curNote.points[0].y, curNote.number,
-            self.circleSize, 1, curNote.color, noteC);
+            self.circleSize, curNote.color, buffer);
         }
       }
-      /*
+
       noteC.globalAlpha = opacity;
-      noteC.drawImage(bufferCanvas,0,0);
-      buffer.clearRect(0,0,self.maxArea,self.maxArea);*/
+      noteC.drawImage(bufferCanvas, 0, 0);
+      buffer.clearRect(0, 0, self.maxArea, self.maxArea);
     }
 
-    for (var i = self.exitQueue.end - 1; i >= self.exitQueue.start; i--) {
+    //renders entrance
+    for (var i = self.entranceQueue.end - 1; i >= self.entranceQueue.start; i--) {
       var curNote = self.songData[i];
-      var sliderTime = 0;
-
-      if (curNote.type != null) sliderTime = curNote.length *
-        sliderSolidFactor;
-      var opacity = 1 - ((curTime - (curNote.time + sliderTime +
-        noteSolidTime)) / fadeOutTime);
+      var opacity = 1 - ((curNote.time - curTime) / fadeInTime);
 
       opacity = Math.pow(opacity, 2.5);
       drawNotesIteration(curNote, opacity);
@@ -311,10 +308,15 @@ Engine.prototype = {
       drawNotesIteration(curNote, opacity);
     }
 
-    //renders entrance
-    for (var i = self.entranceQueue.end - 1; i >= self.entranceQueue.start; i--) {
+    //renders exitQueue
+    for (var i = self.exitQueue.end - 1; i >= self.exitQueue.start; i--) {
       var curNote = self.songData[i];
-      var opacity = 1 - ((curNote.time - curTime) / fadeInTime);
+      var sliderTime = 0;
+
+      if (curNote.type != null) sliderTime = curNote.length *
+        sliderSolidFactor;
+      var opacity = 1 - ((curTime - (curNote.time + sliderTime +
+        noteSolidTime)) / fadeOutTime);
 
       opacity = Math.pow(opacity, 2.5);
       drawNotesIteration(curNote, opacity);

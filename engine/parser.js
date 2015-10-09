@@ -267,7 +267,8 @@ function parseNotes(osuObj) {
   osuObj.HitObjects = _.map(osuObj.HitObjects, function(x) {
     var newObj = {
       time: x.time,
-      newCombo: (x.type & 4) > 0
+      newCombo: (x.type & 4) > 0,
+      repeat: x.repeat
     };
 
     newObj.color = colors[curColor];
