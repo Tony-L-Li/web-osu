@@ -144,7 +144,7 @@ function getArcPath(arc, velocity) {
     x: arc.x + Math.cos(arc.endAngle) * arc.r,
     y: arc.y + Math.sin(arc.endAngle) * arc.r
   });
-
+  path.reverse();
   return path;
 }
 
@@ -166,8 +166,8 @@ function getLinearPath(line, velocity) {
 
   for (var i = 0; i < length / velocity; i++) {
     path.push({
-      x: line[0].x + ((line[1].x - line[0].x) * i / velocity),
-      y: line[0].y + ((line[1].y - line[0].y) * i / velocity),
+      x: line[0].x + ((line[1].x - line[0].x) * i / (length / velocity)),
+      y: line[0].y + ((line[1].y - line[0].y) * i / (length / velocity)),
     });
   }
 

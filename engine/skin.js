@@ -2,8 +2,29 @@ var mainOpacity = 1;
 var minorOpacity = 0.7;
 var borderWidth = 8;
 
-function drawApproachCircle(x, y, ctx) {
+function drawMouseArea(x, y, size, ctx) {
+  ctx.save();
 
+  ctx.strokeStyle = '#39CCCC';
+  ctx.lineWidth = 4;
+  ctx.beginPath();
+  ctx.arc(x, y, size, 0, 2 * Math.PI);
+  ctx.stroke();
+
+  ctx.restore();
+}
+
+function drawApproachCircle(x, y, size, color, curStage, ctx) {
+  ctx.save();
+  curStage = 1 - curStage;
+  ctx.globalAlpha = 1 - curStage;
+  ctx.strokeStyle = color;
+  ctx.lineWidth = 4 + 6 * curStage;
+  ctx.beginPath();
+  ctx.arc(x, y, size * (1 + 3 * curStage), 0, 2 * Math.PI);
+  ctx.stroke();
+
+  ctx.restore();
 }
 
 function drawCircle(x, y, number, size, color, ctx) {
@@ -17,7 +38,7 @@ function drawCircle(x, y, number, size, color, ctx) {
 
   ctx.globalAlpha = mainOpacity;
   ctx.strokeStyle = '#e6e6e6';
-  ctx.lineWidth = borderWidth/2;
+  ctx.lineWidth = borderWidth / 2;
   ctx.beginPath();
   ctx.arc(x, y, size - 2, 0, 2 * Math.PI);
   ctx.stroke();

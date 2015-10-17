@@ -37,8 +37,8 @@ function Engine(container, songData, songUrl) {
     buffer: createCanvas('buffer', 0),
     bg: createCanvas('bg', 0),
     ui: createCanvas('ui', 1),
-    slider: createCanvas('slider', 2),
-    note: createCanvas('note', 3),
+    note: createCanvas('note', 2),
+    sliderCircle: createCanvas('slider-circle', 3),
     cursorArea: createCanvas('cursor-area', 4)
   };
   this.scale = this.root.height() / self.maxArea;
@@ -153,20 +153,46 @@ Engine.prototype = {
     self.audio.play();
     self.render();
   },
+  getSliderPos: function(percentage, posArr, length) {
+    //Test Paths
+    // var self = this;
+    // self.c.sliderCircle.save();
+    // self.c.sliderCircle.strokeStyle = '#ffffff';
+    // _.forEach(posArr, function (val) {
+    //   self.c.sliderCircle.beginPath();
+    //   self.c.sliderCircle.arc(val.x, val.y, 4, 0, Math.PI * 2);
+
+    //   self.c.sliderCircle.stroke();
+    // });
+    // self.c.sliderCircle.restore();
+
+    var index = Math.min(Math.floor(percentage * length / 10), posArr.length - 1);
+    var progress = (percentage * length / 10) - index;
+    var next = 1;
+    if (index >= posArr.length - 1) next = 0;
+    
+    return {
+      x: posArr[index].x + (posArr[index + next].x - posArr[index].x) *
+        progress,
+      y: posArr[index].y + (posArr[index + next].y - posArr[index].y) *
+        progress
+    }
+  },
   render: function() {
     var self = this;
     var noteC = self.c.note;
-    var sliderC = self.c.slider;
+    var sliderC = self.c.sliderCircle;
     var scaledArea = self.maxArea * self.scale;
     self.c.note.clearRect(0, 0, scaledArea, scaledArea);
-    self.c.slider.clearRect(0, 0, scaledArea, scaledArea);
+    self.c.sliderCircle.clearRect(0, 0, scaledArea, scaledArea);
     self.c.buffer.clearRect(0, 0, scaledArea, scaledArea);
 
     _.each(self.c, function(v, k) {
       v.save();
-      if (k === 'note' || k === 'slider' || k === 'cursor-area' || k ===
+      if (k === 'note' || k === 'cursorArea' || k === 'sliderCircle' ||
+        k ===
         'buffer') {
-        if (k === 'buffer') {
+        if (k === 'buffer' || k === 'sliderCircle') {
           v.translate(50 * self.scale, 90 * self.scale);
           v.scale(self.scale, self.scale);
         }
@@ -181,9 +207,10 @@ Engine.prototype = {
     self.drawUIScore(self.c.ui);
 
 
-    var fadeInTime = self.ar * self.arConst;
+    var fadeInTime = self.ar * 3 * self.arConst;
     var noteSolidTime = self.ar * self.arConst / 2;
-    var fadeOutTime = self.ar * self.arConst / 2;
+    noteSolidTime = 0;
+    var fadeOutTime = self.ar * self.arConst;
     var sliderSolidFactor = 2;
     var curTime = self.audio.currentTime * 1000;
 
@@ -218,7 +245,8 @@ Engine.prototype = {
       var curNoteTime = curSong.time;
       var sliderTime;
 
-      if (curSongType != null) sliderTime = curSong.length * sliderSolidFactor * curSong.repeat;
+      if (curSongType != null) sliderTime = curSong.length *
+        sliderSolidFactor * curSong.repeat;
 
       if ((curSongType == null && curNoteTime + noteSolidTime <= curTime) ||
         (curSongType != null && curNoteTime + noteSolidTime + sliderTime <=
@@ -238,7 +266,8 @@ Engine.prototype = {
       var curNoteTime = curSong.time;
       var sliderTime;
 
-      if (curSongType != null) sliderTime = curSong.length * sliderSolidFactor * curSong.repeat;
+      if (curSongType != null) sliderTime = curSong.length *
+        sliderSolidFactor * curSong.repeat;
 
       if ((curSongType == null && curNoteTime + noteSolidTime + fadeOutTime <=
           curTime) ||
@@ -256,10 +285,17 @@ Engine.prototype = {
 
     // RENDER NOTES
     // Everything has be rendered in reverse order (Kind of... not sure... it works...)
-    function drawNotesIteration(curNote, opacity) {
+    function drawNotesIteration(curNote, opacity, drawAC, isExit) {
+      var size = self.circleSize;
+
+      if (isExit) size = size * (1 + (curStage * 0.35));
       if (curNote.type == null) {
-        drawCircle(curNote.x, curNote.y, curNote.number, self.circleSize,
+        drawCircle(curNote.x, curNote.y, curNote.number, size,
           curNote.color, buffer);
+
+        if (drawAC) drawApproachCircle(curNote.x, curNote.y, self.circleSize,
+          curNote.color,
+          curStage, buffer);
       } else {
         switch (curNote.type) {
           case 'line':
@@ -275,15 +311,24 @@ Engine.prototype = {
         if (curNote.type === 'bezier') {
           var lastElem = curNote.points[curNote.points.length - 1];
           lastElem = lastElem[lastElem.length - 1];
-          drawCircle(lastElem.x, lastElem.y, '', self.circleSize, curNote.color,
+          drawCircle(lastElem.x, lastElem.y, '', size, curNote.color,
             buffer);
           drawCircle(curNote.points[0][0].x, curNote.points[0][0].y,
-            curNote.number, self.circleSize, curNote.color, buffer);
+            curNote.number, size, curNote.color, buffer);
+
+          if (drawAC) drawApproachCircle(curNote.points[0][0].x, curNote.points[
+              0][0].y, self.circleSize, curNote.color,
+            curStage, buffer);
         } else {
           var lastElem = curNote.points[curNote.points.length - 1];
-          drawCircle(lastElem.x, lastElem.y, '', self.circleSize, curNote.color, buffer);
+          drawCircle(lastElem.x, lastElem.y, '', size, curNote.color,
+            buffer);
           drawCircle(curNote.points[0].x, curNote.points[0].y, curNote.number,
-            self.circleSize, curNote.color, buffer);
+            size, curNote.color, buffer);
+
+          if (drawAC) drawApproachCircle(curNote.points[0].x, curNote.points[
+              0].y, self.circleSize, curNote.color,
+            curStage, buffer);
         }
       }
 
@@ -296,16 +341,29 @@ Engine.prototype = {
     for (var i = self.entranceQueue.end - 1; i >= self.entranceQueue.start; i--) {
       var curNote = self.songData[i];
       var opacity = 1 - ((curNote.time - curTime) / fadeInTime);
+      var curStage = opacity;
 
       opacity = Math.pow(opacity, 2.5);
-      drawNotesIteration(curNote, opacity);
+      drawNotesIteration(curNote, opacity, true);
     }
 
     //renders play
     for (var i = self.playQueue.end - 1; i >= self.playQueue.start; i--) {
       var curNote = self.songData[i];
       var opacity = 1;
-      drawNotesIteration(curNote, opacity);
+      drawNotesIteration(curNote, opacity, false);
+
+      if (curNote.type != null) {
+        var curNoteTime = curNote.time;
+        var sliderTime = curNote.length * sliderSolidFactor;
+        var percentage = 1 - (((curNoteTime + sliderTime) - curTime) /
+          sliderTime);
+
+        var mouseArea = self.getSliderPos(percentage, curNote.path, curNote
+          .length);
+
+        drawMouseArea(mouseArea.x, mouseArea.y, self.circleSize, sliderC);
+      }
     }
 
     //renders exitQueue
@@ -317,9 +375,9 @@ Engine.prototype = {
         sliderSolidFactor;
       var opacity = 1 - ((curTime - (curNote.time + sliderTime +
         noteSolidTime)) / fadeOutTime);
-
+      var curStage = 1 - opacity;
       opacity = Math.pow(opacity, 2.5);
-      drawNotesIteration(curNote, opacity);
+      drawNotesIteration(curNote, opacity, false, true);
     }
 
 
