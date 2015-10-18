@@ -69,6 +69,11 @@ function Engine(container, songData, songUrl) {
 }
 
 Engine.prototype = {
+  //turn on for engine debugging
+  debug: {
+    lifecycle: false,
+    path: false
+  },
   maxArea: 612,
   maxWidth: 512,
   maxHeight: 384,
@@ -148,29 +153,33 @@ Engine.prototype = {
       end: 0
     };
 
-    self.audio.volume = 0.00;
-    self.audio.currentTime = 9.5;
+    self.audio.volume = 0.0;
+    self.audio.currentTime = 40.5;
     self.audio.play();
     self.render();
   },
   getSliderPos: function(percentage, posArr, length) {
     //Test Paths
-    // var self = this;
-    // self.c.sliderCircle.save();
-    // self.c.sliderCircle.strokeStyle = '#ffffff';
-    // _.forEach(posArr, function (val) {
-    //   self.c.sliderCircle.beginPath();
-    //   self.c.sliderCircle.arc(val.x, val.y, 4, 0, Math.PI * 2);
+    var self = this;
 
-    //   self.c.sliderCircle.stroke();
-    // });
-    // self.c.sliderCircle.restore();
+    if (self.debug.path) {
+      self.c.sliderCircle.save();
+      self.c.sliderCircle.strokeStyle = '#ffffff';
+      _.forEach(posArr, function(val) {
+        self.c.sliderCircle.beginPath();
+        self.c.sliderCircle.arc(val.x, val.y, 4, 0, Math.PI * 2);
+
+        self.c.sliderCircle.stroke();
+      });
+      self.c.sliderCircle.restore();
+    }
+
 
     var index = Math.min(Math.floor(percentage * length / 10), posArr.length - 1);
     var progress = (percentage * length / 10) - index;
     var next = 1;
     if (index >= posArr.length - 1) next = 0;
-    
+
     return {
       x: posArr[index].x + (posArr[index + next].x - posArr[index].x) *
         progress,
@@ -211,7 +220,8 @@ Engine.prototype = {
     var noteSolidTime = self.ar * self.arConst / 2;
     noteSolidTime = 0;
     var fadeOutTime = self.ar * self.arConst;
-    var sliderSolidFactor = 2;
+    var sliderSolidFactor = 3 * (1 / self.metaData.SliderMultiplier);
+
     var curTime = self.audio.currentTime * 1000;
 
 
@@ -337,14 +347,43 @@ Engine.prototype = {
       buffer.clearRect(0, 0, self.maxArea, self.maxArea);
     }
 
+    function drawStatusCircle(curNote, color, number) {
+      var x, y;
+      self.c.sliderCircle.save();
+      self.c.sliderCircle.fillStyle = color;
+      self.c.sliderCircle.beginPath();
+
+      if (curNote.type == null) {
+        x = curNote.x;
+        y = curNote.y;
+
+      } else {
+        if (curNote.type === 'bezier') {
+          x = curNote.points[0][0].x;
+          y = curNote.points[0][0].y;
+        } else {
+          x = curNote.points[0].x;
+          y = curNote.points[0].y;
+        }
+      }
+
+      self.c.sliderCircle.arc(x, y, 4, 0, Math.PI * 2);
+      self.c.sliderCircle.fill();
+      self.c.sliderCircle.fillStyle = '#ffffff';
+      self.c.sliderCircle.fillText(number.toString(), x, y + 12);
+      self.c.sliderCircle.restore();
+    }
+
     //renders entrance
     for (var i = self.entranceQueue.end - 1; i >= self.entranceQueue.start; i--) {
       var curNote = self.songData[i];
       var opacity = 1 - ((curNote.time - curTime) / fadeInTime);
       var curStage = opacity;
 
-      opacity = Math.pow(opacity, 2.5);
+      opacity = Math.min(1, Math.pow(opacity * 2, 2.5));
       drawNotesIteration(curNote, opacity, true);
+
+      if (self.debug.lifecycle) drawStatusCircle(curNote, '#2ECC40', i);
     }
 
     //renders play
@@ -364,6 +403,8 @@ Engine.prototype = {
 
         drawMouseArea(mouseArea.x, mouseArea.y, self.circleSize, sliderC);
       }
+
+      if (self.debug.lifecycle) drawStatusCircle(curNote, '#FFDC00', i);
     }
 
     //renders exitQueue
@@ -378,6 +419,8 @@ Engine.prototype = {
       var curStage = 1 - opacity;
       opacity = Math.pow(opacity, 2.5);
       drawNotesIteration(curNote, opacity, false, true);
+
+      if (self.debug.lifecycle) drawStatusCircle(curNote, '#FF4136', i);
     }
 
 
