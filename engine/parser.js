@@ -264,11 +264,27 @@ function parseNotes(osuObj) {
   var curColor = 0;
   var curNumber = 1;
 
+  var totalTimingPoints = osuObj.TimingPoints.length;
+  var curTimingIndex = 0;
+  var curNonInheritedTiming = osuObj.TimingPoints[0].MillisecondsPerBeat;
+  var curTiming = curNonInheritedTiming;
+
   osuObj.HitObjects = _.map(osuObj.HitObjects, function(x) {
+    if (curTimingIndex + 1 < totalTimingPoints && x.time <= osuObj.TimingPoints[curTimingIndex + 1].Offset) {
+      curTimingIndex++;
+      if (osuObj.TimingPoints[curTimingIndex].Inherited === 0) {
+        curTiming = curNonInheritedTiming + osuObj.TimingPoints[curTimingIndex].MillisecondsPerBeat;
+      } else {
+        curNonInheritedTiming = osuObj.TimingPoints[curTimingIndex].MillisecondsPerBeat;
+        curTiming = curNonInheritedTiming;
+      }
+    } 
+    console.log(curTiming);
     var newObj = {
       time: x.time,
       newCombo: (x.type & 4) > 0,
-      repeat: x.repeat
+      repeat: x.repeat,
+      bpm: curTiming
     };
 
     newObj.color = colors[curColor];
@@ -282,6 +298,7 @@ function parseNotes(osuObj) {
       newObj.x = x.x;
       newObj.y = x.y;
     } else if ((x.type & 2) > 0) {
+      newObj.curRepeat = 0;
       if (x.sliderType === 'P') {
         newObj.points = x.curvePoints;
         newObj.type = 'arc';

@@ -27,7 +27,7 @@ function drawApproachCircle(x, y, size, color, curStage, ctx) {
   ctx.restore();
 }
 
-function drawCircle(x, y, number, size, color, ctx) {
+function drawCircle(x, y, number, size, color, repeatPath, ctx) {
   ctx.save();
 
   ctx.globalAlpha = minorOpacity;

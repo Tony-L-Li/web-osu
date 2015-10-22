@@ -79,23 +79,6 @@ Engine.prototype = {
   maxHeight: 384,
   health: 1,
   accuracy: 0.4545,
-  /*
-  initOffscreenCanvases: function() {
-    function getNoteCanvas(note) {
-      var buffer = document.createElement('canvas');
-      var ctx = buffer.getContext('2d');
-      var size = this.metaData.CircleSize * 9;
-
-      buffer.width = 
-      drawCircle()
-    }
-
-    var self = this;
-
-    _.forEach(self.songData, function(note) {
-
-    });
-  },*/
   drawHealth: function(ctx) {
     var HEALTH_LEN = 300;
     var HEALTH_THICK = 8;
@@ -152,13 +135,19 @@ Engine.prototype = {
       start: 0,
       end: 0
     };
-
+    console.log(self.audio);
     self.audio.volume = 0.0;
-    self.audio.currentTime = 40.5;
+    self.audio.currentTime = 26.5;
     self.audio.play();
     self.render();
   },
-  getSliderPos: function(percentage, posArr, length) {
+  getRepeatArrowPath: function(note, isEnd) {
+    var start, end;
+    if (!isEnd) {
+      start = note;
+    }
+  },
+  getSliderPos: function(percentage, posArr, length, iteration) {
     //Test Paths
     var self = this;
 
@@ -174,16 +163,26 @@ Engine.prototype = {
       self.c.sliderCircle.restore();
     }
 
+    function posArrIndex(index) {
+      if (iteration % 2 === 0) {
+        return posArr[index];
+      } else {
+        return posArr[posArr.length - index - 1];
+      }
+    }
 
-    var index = Math.min(Math.floor(percentage * length / 10), posArr.length - 1);
+    var index = Math.min(Math.floor(percentage * length / 10), posArr.length -
+      1);
     var progress = (percentage * length / 10) - index;
     var next = 1;
     if (index >= posArr.length - 1) next = 0;
 
     return {
-      x: posArr[index].x + (posArr[index + next].x - posArr[index].x) *
+      x: posArrIndex(index).x + (posArrIndex(index + next).x - posArrIndex(
+          index).x) *
         progress,
-      y: posArr[index].y + (posArr[index + next].y - posArr[index].y) *
+      y: posArrIndex(index).y + (posArrIndex(index + next).y - posArrIndex(
+          index).y) *
         progress
     }
   },
@@ -238,7 +237,6 @@ Engine.prototype = {
     }
 
     while (true) {
-      //console.log('%f %f',self.entranceQueue.start, self.entranceQueue.end);
       if (self.songData[self.entranceQueue.start].time <= curTime) {
         // pops out of entrance queue
         self.entranceQueue.start++;
@@ -250,16 +248,16 @@ Engine.prototype = {
     }
 
     while (true) {
-      var curSong = self.songData[self.playQueue.start];
-      var curSongType = curSong.type;
-      var curNoteTime = curSong.time;
+      var curNote = self.songData[self.playQueue.start];
+      var curNoteType = curNote.type;
+      var curNoteTime = curNote.time;
       var sliderTime;
 
-      if (curSongType != null) sliderTime = curSong.length *
-        sliderSolidFactor * curSong.repeat;
+      if (curNoteType != null) sliderTime = curNote.length *
+        sliderSolidFactor * curNote.repeat * (200 / curNote.bpm);
 
-      if ((curSongType == null && curNoteTime + noteSolidTime <= curTime) ||
-        (curSongType != null && curNoteTime + noteSolidTime + sliderTime <=
+      if ((curNoteType == null && curNoteTime + noteSolidTime <= curTime) ||
+        (curNoteType != null && curNoteTime + noteSolidTime + sliderTime <=
           curTime)) {
         // pops out of play queue
         self.playQueue.start++;
@@ -271,17 +269,17 @@ Engine.prototype = {
     }
 
     while (true) {
-      var curSong = self.songData[self.exitQueue.start];
-      var curSongType = curSong.type;
-      var curNoteTime = curSong.time;
+      var curNote = self.songData[self.exitQueue.start];
+      var curNoteType = curNote.type;
+      var curNoteTime = curNote.time;
       var sliderTime;
 
-      if (curSongType != null) sliderTime = curSong.length *
-        sliderSolidFactor * curSong.repeat;
+      if (curNoteType != null) sliderTime = curNote.length *
+        sliderSolidFactor * curNote.repeat * (200 / curNote.bpm);
 
-      if ((curSongType == null && curNoteTime + noteSolidTime + fadeOutTime <=
+      if ((curNoteType == null && curNoteTime + noteSolidTime + fadeOutTime <=
           curTime) ||
-        (curSongType != null && curNoteTime + noteSolidTime + sliderTime +
+        (curNoteType != null && curNoteTime + noteSolidTime + sliderTime +
           fadeOutTime <= curTime)) {
         // pops out of exit queue
         self.exitQueue.start++;
@@ -301,7 +299,7 @@ Engine.prototype = {
       if (isExit) size = size * (1 + (curStage * 0.35));
       if (curNote.type == null) {
         drawCircle(curNote.x, curNote.y, curNote.number, size,
-          curNote.color, buffer);
+          curNote.color, null, buffer);
 
         if (drawAC) drawApproachCircle(curNote.x, curNote.y, self.circleSize,
           curNote.color,
@@ -321,20 +319,20 @@ Engine.prototype = {
         if (curNote.type === 'bezier') {
           var lastElem = curNote.points[curNote.points.length - 1];
           lastElem = lastElem[lastElem.length - 1];
-          drawCircle(lastElem.x, lastElem.y, '', size, curNote.color,
+          drawCircle(lastElem.x, lastElem.y, '', size, curNote.color, null,
             buffer);
           drawCircle(curNote.points[0][0].x, curNote.points[0][0].y,
-            curNote.number, size, curNote.color, buffer);
+            curNote.number, size, curNote.color, null, buffer);
 
           if (drawAC) drawApproachCircle(curNote.points[0][0].x, curNote.points[
               0][0].y, self.circleSize, curNote.color,
             curStage, buffer);
         } else {
           var lastElem = curNote.points[curNote.points.length - 1];
-          drawCircle(lastElem.x, lastElem.y, '', size, curNote.color,
+          drawCircle(lastElem.x, lastElem.y, '', size, curNote.color, null,
             buffer);
           drawCircle(curNote.points[0].x, curNote.points[0].y, curNote.number,
-            size, curNote.color, buffer);
+            size, curNote.color, null, buffer);
 
           if (drawAC) drawApproachCircle(curNote.points[0].x, curNote.points[
               0].y, self.circleSize, curNote.color,
@@ -391,17 +389,23 @@ Engine.prototype = {
       var curNote = self.songData[i];
       var opacity = 1;
       drawNotesIteration(curNote, opacity, false);
-
+      console.log(200 / curNote.bpm);
       if (curNote.type != null) {
         var curNoteTime = curNote.time;
-        var sliderTime = curNote.length * sliderSolidFactor;
-        var percentage = 1 - (((curNoteTime + sliderTime) - curTime) /
-          sliderTime);
-
+        var sliderTime = curNote.length * curNote.repeat *
+          sliderSolidFactor * (200 / curNote.bpm);
+        //percentage before removal of repeat slider percentage (ex. 120% is 1 iteration and 20% into the second)
+        var percentage = (1 - (((curNoteTime + sliderTime) - curTime) /
+          sliderTime)) * curNote.repeat;
+        //counts current slider repeat iteration
+        var iteration = Math.floor(percentage);
+        //removes iteration overflow percentage
+        percentage = percentage % 1;
         var mouseArea = self.getSliderPos(percentage, curNote.path, curNote
-          .length);
+          .length, iteration);
 
-        drawMouseArea(mouseArea.x, mouseArea.y, self.circleSize, sliderC);
+        drawMouseArea(mouseArea.x, mouseArea.y, self.circleSize * 1.6,
+          sliderC);
       }
 
       if (self.debug.lifecycle) drawStatusCircle(curNote, '#FFDC00', i);
@@ -412,8 +416,8 @@ Engine.prototype = {
       var curNote = self.songData[i];
       var sliderTime = 0;
 
-      if (curNote.type != null) sliderTime = curNote.length *
-        sliderSolidFactor;
+      if (curNote.type != null) sliderTime = curNote.length * curNote.repeat *
+        sliderSolidFactor * (200 / curNote.bpm);
       var opacity = 1 - ((curTime - (curNote.time + sliderTime +
         noteSolidTime)) / fadeOutTime);
       var curStage = 1 - opacity;
