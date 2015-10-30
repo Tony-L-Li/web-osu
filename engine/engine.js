@@ -141,12 +141,6 @@ Engine.prototype = {
     self.audio.play();
     self.render();
   },
-  getRepeatArrowPath: function(note, isEnd) {
-    var start, end;
-    if (!isEnd) {
-      start = note;
-    }
-  },
   getSliderPos: function(percentage, posArr, length, iteration) {
     //Test Paths
     var self = this;
@@ -293,12 +287,13 @@ Engine.prototype = {
 
     // RENDER NOTES
     // Everything has be rendered in reverse order (Kind of... not sure... it works...)
-    function drawNotesIteration(curNote, opacity, drawAC, isExit) {
+    function drawNotesIteration(curNote, opacity, drawAC, isExit, isPlay, drawRepeat) {
       var size = self.circleSize;
+      var number = isPlay ? '' : curNote.number;
 
       if (isExit) size = size * (1 + (curStage * 0.35));
       if (curNote.type == null) {
-        drawCircle(curNote.x, curNote.y, curNote.number, size,
+        drawCircle(curNote.x, curNote.y, number, size,
           curNote.color, null, buffer);
 
         if (drawAC) drawApproachCircle(curNote.x, curNote.y, self.circleSize,
@@ -322,7 +317,7 @@ Engine.prototype = {
           drawCircle(lastElem.x, lastElem.y, '', size, curNote.color, null,
             buffer);
           drawCircle(curNote.points[0][0].x, curNote.points[0][0].y,
-            curNote.number, size, curNote.color, null, buffer);
+            number, size, curNote.color, null, buffer);
 
           if (drawAC) drawApproachCircle(curNote.points[0][0].x, curNote.points[
               0][0].y, self.circleSize, curNote.color,
@@ -331,12 +326,17 @@ Engine.prototype = {
           var lastElem = curNote.points[curNote.points.length - 1];
           drawCircle(lastElem.x, lastElem.y, '', size, curNote.color, null,
             buffer);
-          drawCircle(curNote.points[0].x, curNote.points[0].y, curNote.number,
+          drawCircle(curNote.points[0].x, curNote.points[0].y, number,
             size, curNote.color, null, buffer);
 
           if (drawAC) drawApproachCircle(curNote.points[0].x, curNote.points[
               0].y, self.circleSize, curNote.color,
             curStage, buffer);
+        }
+        if (drawRepeat === 0) {
+          drawArrow(curNote.path[curNote.path.length-1], curNote.arrow.end, 5, buffer);
+        } else if (drawRepeat === 1) {
+          drawArrow(curNote.path[0], curNote.arrow.start, 5, buffer);
         }
       }
 
@@ -379,7 +379,8 @@ Engine.prototype = {
       var curStage = opacity;
 
       opacity = Math.min(1, Math.pow(opacity * 2, 2.5));
-      drawNotesIteration(curNote, opacity, true);
+      var curRepeatArrow = curNote.repeat > 1 ? 0 : -1;
+      drawNotesIteration(curNote, opacity, true, false, false, curRepeatArrow);
 
       if (self.debug.lifecycle) drawStatusCircle(curNote, '#2ECC40', i);
     }
@@ -388,8 +389,8 @@ Engine.prototype = {
     for (var i = self.playQueue.end - 1; i >= self.playQueue.start; i--) {
       var curNote = self.songData[i];
       var opacity = 1;
-      drawNotesIteration(curNote, opacity, false);
-      console.log(200 / curNote.bpm);
+      
+      //console.log(200 / curNote.bpm);
       if (curNote.type != null) {
         var curNoteTime = curNote.time;
         var sliderTime = curNote.length * curNote.repeat *
@@ -404,8 +405,12 @@ Engine.prototype = {
         var mouseArea = self.getSliderPos(percentage, curNote.path, curNote
           .length, iteration);
 
+        var curRepeatArrow = curNote.repeat > 1 && iteration < curNote.repeat - 1 ? iteration % 2 : -1;
+        drawNotesIteration(curNote, opacity, false, false, true, curRepeatArrow);
         drawMouseArea(mouseArea.x, mouseArea.y, self.circleSize * 1.6,
           sliderC);
+      } else {
+        drawNotesIteration(curNote, opacity, false, false, true);
       }
 
       if (self.debug.lifecycle) drawStatusCircle(curNote, '#FFDC00', i);
@@ -422,7 +427,7 @@ Engine.prototype = {
         noteSolidTime)) / fadeOutTime);
       var curStage = 1 - opacity;
       opacity = Math.pow(opacity, 2.5);
-      drawNotesIteration(curNote, opacity, false, true);
+      drawNotesIteration(curNote, opacity, false, true, true);
 
       if (self.debug.lifecycle) drawStatusCircle(curNote, '#FF4136', i);
     }

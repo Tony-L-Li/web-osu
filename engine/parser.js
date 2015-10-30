@@ -258,6 +258,19 @@ function BsplineToBezierSpline(bspline) {
   return beziers;
 }
 
+function getArrowPoint(start, end) {
+  var mEnd = {
+    x: end.x - start.x,
+    y: end.y - start.y
+  };
+
+  var factor = Math.sqrt(Math.pow(mEnd.x, 2) + Math.pow(mEnd.y, 2));
+  mEnd.x /= factor;
+  mEnd.y /= factor;
+  //console.log(mEnd);
+  return mEnd;
+}
+
 function parseNotes(osuObj) {
   console.log(osuObj.HitObjects);
   var colors = osuObj.Colors;
@@ -270,16 +283,18 @@ function parseNotes(osuObj) {
   var curTiming = curNonInheritedTiming;
 
   osuObj.HitObjects = _.map(osuObj.HitObjects, function(x) {
-    if (curTimingIndex + 1 < totalTimingPoints && x.time <= osuObj.TimingPoints[curTimingIndex + 1].Offset) {
+    if (curTimingIndex + 1 < totalTimingPoints && x.time <= osuObj.TimingPoints[
+        curTimingIndex + 1].Offset) {
       curTimingIndex++;
       if (osuObj.TimingPoints[curTimingIndex].Inherited === 0) {
-        curTiming = curNonInheritedTiming + osuObj.TimingPoints[curTimingIndex].MillisecondsPerBeat;
+        curTiming = curNonInheritedTiming + osuObj.TimingPoints[
+          curTimingIndex].MillisecondsPerBeat;
       } else {
         curNonInheritedTiming = osuObj.TimingPoints[curTimingIndex].MillisecondsPerBeat;
         curTiming = curNonInheritedTiming;
       }
-    } 
-    console.log(curTiming);
+    }
+    //console.log(curTiming);
     var newObj = {
       time: x.time,
       newCombo: (x.type & 4) > 0,
@@ -299,29 +314,40 @@ function parseNotes(osuObj) {
       newObj.y = x.y;
     } else if ((x.type & 2) > 0) {
       newObj.curRepeat = 0;
-      if (x.sliderType === 'P') {
-        newObj.points = x.curvePoints;
-        newObj.type = 'arc';
-        newObj.arc = generateArcFromPoints(newObj.points);
-        newObj.path = getArcPath(newObj.arc, 10);
-        newObj.length = getAngleFromArc(newObj.arc.startAngle, newObj.arc.endAngle,
-          newObj.arc.ccw) * newObj.arc.r;
-      } else if (x.sliderType === 'B') {
+      
+      if (x.sliderType === 'B') {
         newObj.points = BsplineToBezierSpline(x.curvePoints);
         newObj.type = 'bezier';
         var tempB = new BezierSpline(newObj.points);
         newObj.path = tempB.getPath(10);
         newObj.length = tempB.arcLength;
-      } else if (x.sliderType === 'L') {
-        newObj.points = x.curvePoints;
-        newObj.type = 'line';
-        newObj.path = getLinearPath(newObj.points, 10);
-        newObj.length = lineDistance(newObj.points[0], newObj.points[1]);
+      } else {
+        if (x.sliderType === 'P') {
+          newObj.points = x.curvePoints;
+          newObj.type = 'arc';
+          newObj.arc = generateArcFromPoints(newObj.points);
+          newObj.path = getArcPath(newObj.arc, 10);
+          newObj.length = getAngleFromArc(newObj.arc.startAngle, newObj.arc
+            .endAngle,
+            newObj.arc.ccw) * newObj.arc.r;
+        } else if (x.sliderType === 'L') {
+          newObj.points = x.curvePoints;
+          newObj.type = 'line';
+          newObj.path = getLinearPath(newObj.points, 10);
+          newObj.length = lineDistance(newObj.points[0], newObj.points[1]);
+        }   
       }
+      var pathLen = newObj.path.length;
+        newObj.arrow = {
+          start: getArrowPoint(newObj.path[0], newObj.path[1]),
+          end: getArrowPoint(newObj.path[pathLen-1], newObj.path[pathLen-2])
+        };
+
     } else if ((x.type & 8) > 0) {
       newObj.endTime = x.endTime;
     }
     return newObj;
   });
+  console.log(osuObj.HitObjects[65]);
   return osuObj;
 }

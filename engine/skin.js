@@ -2,6 +2,35 @@ var mainOpacity = 1;
 var minorOpacity = 0.7;
 var borderWidth = 8;
 
+function drawArrow(center, direction, size, ctx) {
+  var LEN_FACTOR = 2;
+  var ARROW_ANGLE = Math.PI/4;
+  var headlen = 14; 
+  
+
+  var fromx = center.x - direction.x * size * LEN_FACTOR;
+  var fromy = center.y - direction.y * size * LEN_FACTOR;
+  var tox = center.x + direction.x * size * LEN_FACTOR;
+  var toy = center.y + direction.y * size * LEN_FACTOR;
+  var angle = Math.atan2(toy-fromy,tox-fromx);
+  
+  ctx.save();
+
+  ctx.strokeStyle = '#FFFFFF';
+  ctx.lineCap = "round";
+  ctx.lineWidth = 6;
+
+  ctx.beginPath();
+  ctx.moveTo(fromx, fromy);
+  ctx.lineTo(tox, toy);
+  ctx.lineTo(tox-headlen*Math.cos(angle-ARROW_ANGLE),toy-headlen*Math.sin(angle-ARROW_ANGLE));
+  ctx.moveTo(tox, toy);
+  ctx.lineTo(tox-headlen*Math.cos(angle+ARROW_ANGLE),toy-headlen*Math.sin(angle+ARROW_ANGLE));
+  ctx.stroke();
+
+  ctx.restore();
+}
+
 function drawMouseArea(x, y, size, ctx) {
   ctx.save();
 
