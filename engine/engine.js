@@ -66,6 +66,37 @@ function Engine(container, songData, songUrl) {
   this.ar = 9;
   this.arConst = 30;
   this.circleSize = this.metaData.CircleSize * 7;
+
+  //CURSOR
+  document.addEventListener('mousemove', onMouseUpdate, false);
+  document.addEventListener('mouseenter', onMouseUpdate, false);
+
+  var scaledArea = self.maxArea * self.scale;
+
+  function onMouseUpdate(e) {
+    self.c.cursorArea.clearRect(0, 0, scaledArea, scaledArea);
+    drawCursor(e.pageX, e.pageY, self.c.cursorArea);
+  }
+
+  this.playableTime = {
+    start: this.songData[0].time,
+    end: this.songData[this.songData.length - 1].time,
+    duration: this.songData[this.songData.length - 1].time - this.songData[0]
+      .time
+  };
+
+  //CLICKS
+  document.addEventListener('keydown', function(e) {
+    var keynum;
+
+    if (window.event) {
+      keynum = e.keyCode;
+    } else
+    if (e.which) {
+      keynum = e.which;
+    }
+    console.log(keynum);
+  });
 }
 
 Engine.prototype = {
@@ -80,15 +111,25 @@ Engine.prototype = {
   health: 1,
   accuracy: 0.4545,
   drawHealth: function(ctx) {
+    var self = this;
     var HEALTH_LEN = 300;
     var HEALTH_THICK = 8;
+    var curHealth = HEALTH_LEN * this.health;
 
+    if (self.audio.currentTime * 1000 < self.playableTime.start - 1500) {
+      curHealth = 2;
+      if (self.audio.currentTime * 1000 > self.playableTime.start - 8000) {
+        curHealth = HEALTH_LEN * (1 - ((self.playableTime.start - self.audio
+          .currentTime * 1000 - 1500) / 5000));
+      }
+    }
     ctx.save();
     ctx.fillStyle = '#FFF';
-    ctx.fillRect(10, 10, HEALTH_LEN * this.health, HEALTH_THICK);
+    ctx.fillRect(10, 10, curHealth, HEALTH_THICK);
     ctx.restore();
   },
   drawUIScore: function(ctx) {
+    var self = this;
     //draw score
     ctx.font = '25px Nova Square';
     ctx.fillStyle = '#FFF';
@@ -99,14 +140,24 @@ Engine.prototype = {
     ctx.font = '15px Nova Square';
     ctx.fillText((this.accuracy * 100).toFixed(2) + '%', 605, 40);
 
-    var tempComp = 0.4;
     //completion
     var cLeft = 530;
     var cTop = 35;
+    var endTime;
+    var isCCW = self.audio.currentTime * 1000 < self.playableTime.start;
 
-    ctx.fillStyle = '#AAA';
+    if (self.audio.currentTime * 1000 >= self.playableTime.start) {
+      endTime = (((self.audio.currentTime * 1000 - self.playableTime.start) /
+        self.playableTime.duration) * 2 * Math.PI + 1.5 * Math.PI) % (2 *
+        Math.PI)
+    } else if (isCCW) {
+      endTime = ((self.audio.currentTime * 1000 / self.playableTime.start) *
+        2 * Math.PI + 1.5 * Math.PI) % (2 * Math.PI);
+    }
+
+    ctx.fillStyle = isCCW ? '#01FF70' : '#AAA';
     ctx.beginPath();
-    ctx.arc(cLeft, cTop, 7, 1.5 * Math.PI, 2 * Math.PI * tempComp);
+    ctx.arc(cLeft, cTop, 7, 1.5 * Math.PI, endTime, isCCW);
     ctx.lineTo(cLeft, cTop);
     ctx.closePath();
     ctx.fill();
@@ -136,8 +187,9 @@ Engine.prototype = {
       end: 0
     };
     console.log(self.audio);
-    self.audio.volume = 0.0;
-    self.audio.currentTime = 26.5;
+    self.audio.volume = 0.5;
+    self.audio.currentTime = 20;
+    //26.5
     self.audio.play();
     self.render();
   },
@@ -191,10 +243,11 @@ Engine.prototype = {
 
     _.each(self.c, function(v, k) {
       v.save();
-      if (k === 'note' || k === 'cursorArea' || k === 'sliderCircle' ||
+      if (k === 'note' || k === 'sliderCircle' ||
         k ===
         'buffer') {
-        if (k === 'buffer' || k === 'sliderCircle') {
+        if (k === 'buffer' || k === 'sliderCircle' || k ===
+          'cursorArea') {
           v.translate(50 * self.scale, 90 * self.scale);
           v.scale(self.scale, self.scale);
         }
@@ -208,7 +261,6 @@ Engine.prototype = {
     self.drawHealth(self.c.ui);
     self.drawUIScore(self.c.ui);
 
-
     var fadeInTime = self.ar * 3 * self.arConst;
     var noteSolidTime = self.ar * self.arConst / 2;
     noteSolidTime = 0;
@@ -217,12 +269,12 @@ Engine.prototype = {
 
     var curTime = self.audio.currentTime * 1000;
 
-
     //configure entrance queue
     while (true) {
       var curNoteTime = self.songData[self.entranceQueue.end].time;
 
-      if (curNoteTime - fadeInTime <= curTime) {
+      if (curNoteTime - fadeInTime <= curTime && self.entranceQueue.end <
+        self.songData.length - 1) {
         // pushes into entrance queue
         self.entranceQueue.end++;
       } else {
@@ -231,7 +283,8 @@ Engine.prototype = {
     }
 
     while (true) {
-      if (self.songData[self.entranceQueue.start].time <= curTime) {
+      if (self.songData[self.entranceQueue.start].time <= curTime && self.entranceQueue
+        .start < self.songData.length - 1) {
         // pops out of entrance queue
         self.entranceQueue.start++;
         // pushes into play queue
@@ -261,6 +314,7 @@ Engine.prototype = {
         break;
       }
     }
+    //console.log(self.playQueue.end - self.playQueue.start);
 
     while (true) {
       var curNote = self.songData[self.exitQueue.start];
@@ -284,10 +338,10 @@ Engine.prototype = {
     var buffer = self.c.buffer;
     var bufferCanvas = self.e.buffer[0];
 
-
     // RENDER NOTES
     // Everything has be rendered in reverse order (Kind of... not sure... it works...)
-    function drawNotesIteration(curNote, opacity, drawAC, isExit, isPlay, drawRepeat) {
+    function drawNotesIteration(curNote, opacity, drawAC, isExit, isPlay,
+      drawRepeat) {
       var size = self.circleSize;
       var number = isPlay ? '' : curNote.number;
 
@@ -334,7 +388,8 @@ Engine.prototype = {
             curStage, buffer);
         }
         if (drawRepeat === 0) {
-          drawArrow(curNote.path[curNote.path.length-1], curNote.arrow.end, 5, buffer);
+          drawArrow(curNote.path[curNote.path.length - 1], curNote.arrow.end,
+            5, buffer);
         } else if (drawRepeat === 1) {
           drawArrow(curNote.path[0], curNote.arrow.start, 5, buffer);
         }
@@ -380,7 +435,8 @@ Engine.prototype = {
 
       opacity = Math.min(1, Math.pow(opacity * 2, 2.5));
       var curRepeatArrow = curNote.repeat > 1 ? 0 : -1;
-      drawNotesIteration(curNote, opacity, true, false, false, curRepeatArrow);
+      drawNotesIteration(curNote, opacity, true, false, false,
+        curRepeatArrow);
 
       if (self.debug.lifecycle) drawStatusCircle(curNote, '#2ECC40', i);
     }
@@ -389,7 +445,7 @@ Engine.prototype = {
     for (var i = self.playQueue.end - 1; i >= self.playQueue.start; i--) {
       var curNote = self.songData[i];
       var opacity = 1;
-      
+
       //console.log(200 / curNote.bpm);
       if (curNote.type != null) {
         var curNoteTime = curNote.time;
@@ -405,8 +461,10 @@ Engine.prototype = {
         var mouseArea = self.getSliderPos(percentage, curNote.path, curNote
           .length, iteration);
 
-        var curRepeatArrow = curNote.repeat > 1 && iteration < curNote.repeat - 1 ? iteration % 2 : -1;
-        drawNotesIteration(curNote, opacity, false, false, true, curRepeatArrow);
+        var curRepeatArrow = curNote.repeat > 1 && iteration < curNote.repeat -
+          1 ? iteration % 2 : -1;
+        drawNotesIteration(curNote, opacity, false, false, true,
+          curRepeatArrow);
         drawMouseArea(mouseArea.x, mouseArea.y, self.circleSize * 1.6,
           sliderC);
       } else {
@@ -431,8 +489,6 @@ Engine.prototype = {
 
       if (self.debug.lifecycle) drawStatusCircle(curNote, '#FF4136', i);
     }
-
-
 
     //clears canvas
     _.each(self.c, function(v, k) {

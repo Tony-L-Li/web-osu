@@ -2,6 +2,18 @@ var mainOpacity = 1;
 var minorOpacity = 0.7;
 var borderWidth = 8;
 
+function drawCursor(x, y, ctx) {
+  ctx.save();
+
+  ctx.globalAlpha = 0.7;
+  ctx.fillStyle = '#39CCCC';
+  ctx.beginPath();
+  ctx.arc(x, y, 15, 0, 2 * Math.PI);
+  ctx.fill();
+
+  ctx.restore();
+}
+
 function drawArrow(center, direction, size, ctx) {
   var LEN_FACTOR = 2;
   var ARROW_ANGLE = Math.PI/4;
