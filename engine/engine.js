@@ -95,12 +95,26 @@ function Engine(container, songData, songUrl) {
   document.addEventListener('mousemove', onMouseUpdate, false);
   document.addEventListener('mouseenter', onMouseUpdate, false);
   document.addEventListener('keydown', onKeyDown, false);
+  document.addEventListener('keyup', onKeyUp, false);
 
   var scaledArea = self.maxArea * self.scale;
 
   function onKeyDown(e) {
-    if (e.keyCode === 65 || e.keyCode === 83) {
+    if (e.keyCode === self.keyMap.clickA.key && !self.keyMap.clickA.isHit) {
+      self.keyMap.clickA.isHit = true;
       self.checkClick();
+      
+    } else if (e.keyCode === self.keyMap.clickB.key && !self.keyMap.clickB.isHit) {
+       self.keyMap.clickB.isHit = true;
+      self.checkClick();
+    }
+  }
+
+  function onKeyUp(e) {
+    if (e.keyCode === self.keyMap.clickA.key) {
+      self.keyMap.clickA.isHit = false;
+    } else if (e.keyCode === self.keyMap.clickB.key) {
+      self.keyMap.clickB.isHit = false;
     }
   }
 
@@ -128,6 +142,16 @@ Engine.prototype = {
   cursorPos: {
     x: 0,
     y:0
+  },
+  keyMap: {
+    clickA: {
+      key: 65,
+      isHit: false
+    },
+    clickB: {
+      key: 83,
+      isHit: false
+    }
   },
   cursorXOffset: 0,
   cursorState: 0,
@@ -230,8 +254,8 @@ Engine.prototype = {
       end: 0
     };
     console.log(self.audio);
-    self.audio.volume = 0.0;
-    self.audio.currentTime = 20;
+    self.audio.volume = 0.5;
+    self.audio.currentTime = 0;
     //26.5
     self.audio.play();
     self.render();
@@ -275,6 +299,29 @@ Engine.prototype = {
         progress
     }
   },
+  getNoteStart: function (curNote) {
+    //get note position
+    var noteX;
+    var noteY;
+
+    if (curNote.type == null) {
+      noteX = curNote.x;
+      noteY = curNote.y;
+    } else {
+      if (curNote.type === 'bezier') {
+        noteX = curNote.points[0][0].x;
+        noteY = curNote.points[0][0].y;
+      } else {
+        noteX = curNote.points[0].x;
+        noteY = curNote.points[0].y;
+      }
+    }
+
+    return {
+      x : noteX,
+      y : noteY
+    };
+  },
   checkClick: function () {
     function dist(x1, y1, x2, y2) {
       return Math.sqrt( Math.pow((x1-x2), 2) + Math.pow((y1-y2), 2) );
@@ -302,8 +349,9 @@ Engine.prototype = {
     var curNote = self.songData[curQueue.start];
 
     //get note position
-    var noteX;
-    var noteY;
+    var notePos = self.getNoteStart(curNote);
+    var noteX = notePos.x;
+    var noteY = notePos.y;
 
     if (curNote.type == null) {
       noteX = curNote.x;
@@ -328,7 +376,7 @@ Engine.prototype = {
       if (clickOffset <= clickThresh * 2 / 3) {
         self.scoreManager.addNote(300);
         curStatus.status = 300;
-        self.curNote++;
+        
       } else if (clickOffset <= clickThresh * 5 / 6){
         self.scoreManager.addNote(100);
         curStatus.status = 100;
@@ -339,11 +387,9 @@ Engine.prototype = {
         self.scoreManager.addNote(0);
         curStatus.status = 0;
       }
+      self.curNote++;
       self.statusQueue.push(curStatus);
-    } else {
     }
-      
-
   },
   render: function() {
     var self = this;
@@ -361,14 +407,10 @@ Engine.prototype = {
 
     _.each(self.c, function(v, k) {
       v.save();
-      if (k === 'note' || k === 'sliderCircle' ||
-        k === 'buffer' || k === 'clickStatus') {
-        if (k === 'buffer' || k === 'sliderCircle' || k ===
-          'cursorArea' || k === 'clickStatus') {
-          v.translate(50 * self.scale, 90 * self.scale);
-          v.scale(self.scale, self.scale);
-        }
-      } else {
+      if (k === 'sliderCircle' || k === 'buffer' || k === 'clickStatus') {
+        v.scale(self.scale, self.scale);
+        v.translate(50, 90);
+      } else if (k !== 'note') {
         v.scale(self.scale, self.scale);
       }
     });
@@ -385,7 +427,7 @@ Engine.prototype = {
     var noteSolidTime = self.ar * self.arConst / 2;
     noteSolidTime = 0;
     var fadeOutTime = self.ar * self.arConst;
-    var sliderSolidFactor = 3 * (1 / self.metaData.SliderMultiplier);
+    var sliderSolidFactor = 2.5 * (1 / self.metaData.SliderMultiplier);
 
     var curTime = self.audio.currentTime * 1000;
 
@@ -433,10 +475,22 @@ Engine.prototype = {
           curTime)) {
         // pops out of play queue
         self.playQueue.start++;
+        if (self.playQueue.start === self.songData.length) {
+          return;
+        }
         // pushes into exit queue
         self.exitQueue.end++;
         if (self.curNote === self.exitQueue.end - 1) {
+          var notePos = self.getNoteStart(self.songData[self.curNote]);
+            
           self.curNote++;
+          self.scoreManager.addNote(0);
+          self.statusQueue.push({
+            x: notePos.x,
+            y: notePos.y,
+            state: 0,
+            status: 0
+          });
         }
       } else {
         break;
@@ -525,7 +579,9 @@ Engine.prototype = {
 
       noteC.globalAlpha = opacity;
       noteC.drawImage(bufferCanvas, 0, 0);
-      buffer.clearRect(0, 0, self.maxArea, self.maxArea);
+      noteC.globalAlpha = 1;
+      //ted
+      buffer.clearRect(-self.maxArea, -self.maxArea, self.maxArea*2, self.maxArea*2);
     }
 
     function drawStatusCircle(curNote, color, number) {
@@ -623,8 +679,8 @@ Engine.prototype = {
       var curOp = 1;
       if (el.state <= 10) {
         curOp = el.state / 10;
-      } else if (el.state >= 50) {
-        curOp = 1 - ((el.state - 50) / 15);
+      } else if (el.state >= 30) {
+        curOp = 1 - ((el.state - 30) / 15);
       }
 
       el.state++;
@@ -633,14 +689,11 @@ Engine.prototype = {
       drawNoteStatus(el.status, el.x, el.y, curOp, self.c.clickStatus);
     });
 
-    while (self.statusQueue.length > 0 && self.statusQueue[0].state > 65) {
+    while (self.statusQueue.length > 0 && self.statusQueue[0].state > 45) {
       self.statusQueue.shift();
     }
 
-    //clears canvas
-    _.each(self.c, function(v, k) {
-      v.restore();
-    });
+    
 
     //fps check
     if(!lastCalledTime) {
@@ -652,7 +705,11 @@ Engine.prototype = {
       //console.log(1/delta);
     }
 
-    
+    //clears canvas
+    _.each(self.c, function(v, k) {
+      v.restore();
+    });
+
     requestAnimationFrame(self.render.bind(self));
   }
 };
