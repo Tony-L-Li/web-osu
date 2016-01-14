@@ -282,6 +282,13 @@ function parseNotes(osuObj) {
   var curNonInheritedTiming = osuObj.TimingPoints[0].MillisecondsPerBeat;
   var curTiming = curNonInheritedTiming;
 
+  // offsets same position notes
+  var curNotePos = {
+    x: -999,
+    y: -999
+  };
+  var samePosNum = 0;
+
   osuObj.HitObjects = _.map(osuObj.HitObjects, function(x) {
     if (curTimingIndex + 1 < totalTimingPoints && x.time <= osuObj.TimingPoints[
         curTimingIndex + 1].Offset) {
@@ -310,8 +317,15 @@ function parseNotes(osuObj) {
       curNumber = 1;
     }
     if ((x.type & 1) > 0) {
-      newObj.x = x.x;
-      newObj.y = x.y;
+      if (x.x === curNotePos.x && x.y === curNotePos.y) {
+        samePosNum++;
+      } else {
+        curNotePos.x = x.x;
+        curNotePos.y = x.y;
+        samePosNum = 0;
+      }
+      newObj.x = x.x + 5 * samePosNum;
+      newObj.y = x.y + 5 * samePosNum;
     } else if ((x.type & 2) > 0) {
       newObj.curRepeat = 0;
       

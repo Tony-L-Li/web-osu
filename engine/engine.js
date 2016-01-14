@@ -1,3 +1,5 @@
+var lastCalledTime;
+var fps;
 function Engine(container, songData, songUrl) {
   function createCanvas(name, layer) {
     return $('<canvas>', {
@@ -14,17 +16,38 @@ function Engine(container, songData, songUrl) {
   }
 
   function resizeCanvas() {
-    var curDim = Math.min(self.root.height(), self.root.width());
+    var height, width;
+    var marginLeft = 0;
+    if (self.root.height() / self.root.width() > 524 / 612) {
+      width = self.root.width();
+      height = width * 524 / 612;
+    } else {
+      height = self.root.height();
+      width = height * 612 / 524;
+      marginLeft = (self.root.width() - width) / 2;
+    }
+    
     _.each(self.e, function(v, k) {
+      if (k === 'ui' || k === 'cursorArea') {
+        v.attr({
+        'height': self.root.height() + 'px',
+        'width': self.root.width() + 'px'
+        });
+        return;
+      }
+      v.css({left: marginLeft + 'px'});
       v.attr({
-        'height': curDim * 524 / 612 + 'px',
-        'width': curDim + 'px'
+        'height': height + 'px',
+        'width': width + 'px'
       });
     });
-    self.scale = curDim / self.maxArea;
+    self.cursorXOffset = marginLeft;
+    self.scale = width / self.maxArea;
+    self.maxUIWidth = self.root.width() / self.scale;
   }
 
   var self = this;
+  this.scoreManager = new Score();
   this.root = container;
   this.songData = songData.HitObjects;
   this.metaData = songData;
@@ -39,7 +62,8 @@ function Engine(container, songData, songUrl) {
     ui: createCanvas('ui', 1),
     note: createCanvas('note', 2),
     sliderCircle: createCanvas('slider-circle', 3),
-    cursorArea: createCanvas('cursor-area', 4)
+    clickStatus: createCanvas('click-Status', 4),
+    cursorArea: createCanvas('cursor-area', 5)
   };
   this.scale = this.root.height() / self.maxArea;
 
@@ -70,12 +94,21 @@ function Engine(container, songData, songUrl) {
   //CURSOR
   document.addEventListener('mousemove', onMouseUpdate, false);
   document.addEventListener('mouseenter', onMouseUpdate, false);
+  document.addEventListener('keydown', onKeyDown, false);
 
   var scaledArea = self.maxArea * self.scale;
 
+  function onKeyDown(e) {
+    if (e.keyCode === 65 || e.keyCode === 83) {
+      self.checkClick();
+    }
+  }
+
   function onMouseUpdate(e) {
-    self.c.cursorArea.clearRect(0, 0, scaledArea, scaledArea);
-    drawCursor(e.pageX, e.pageY, self.c.cursorArea);
+    self.cursorPos.x = e.pageX;
+    self.cursorPos.y = e.pageY;
+
+    //drawCursor(e.pageX, e.pageY, self.c.cursorArea);
   }
 
   this.playableTime = {
@@ -84,19 +117,6 @@ function Engine(container, songData, songUrl) {
     duration: this.songData[this.songData.length - 1].time - this.songData[0]
       .time
   };
-
-  //CLICKS
-  document.addEventListener('keydown', function(e) {
-    var keynum;
-
-    if (window.event) {
-      keynum = e.keyCode;
-    } else
-    if (e.which) {
-      keynum = e.which;
-    }
-    console.log(keynum);
-  });
 }
 
 Engine.prototype = {
@@ -105,24 +125,34 @@ Engine.prototype = {
     lifecycle: false,
     path: false
   },
+  cursorPos: {
+    x: 0,
+    y:0
+  },
+  cursorXOffset: 0,
+  cursorState: 0,
+  maxUIWidth: 612,
   maxArea: 612,
   maxWidth: 512,
   maxHeight: 384,
   health: 1,
   accuracy: 0.4545,
+  scoreManager: null,
   drawHealth: function(ctx) {
     var self = this;
     var HEALTH_LEN = 300;
     var HEALTH_THICK = 8;
-    var curHealth = HEALTH_LEN * this.health;
 
     if (self.audio.currentTime * 1000 < self.playableTime.start - 1500) {
-      curHealth = 2;
+      curHealth = -2;
       if (self.audio.currentTime * 1000 > self.playableTime.start - 8000) {
         curHealth = HEALTH_LEN * (1 - ((self.playableTime.start - self.audio
           .currentTime * 1000 - 1500) / 5000));
       }
+    } else if (self.audio.currentTime * 1000 >= self.playableTime.start) {
+      curHealth += (HEALTH_LEN * this.scoreManager.curHealth/100 - curHealth) * 0.3;
     }
+
     ctx.save();
     ctx.fillStyle = '#FFF';
     ctx.fillRect(10, 10, curHealth, HEALTH_THICK);
@@ -130,18 +160,28 @@ Engine.prototype = {
   },
   drawUIScore: function(ctx) {
     var self = this;
+    var alignRight = Math.round(this.maxUIWidth - 7);
     //draw score
     ctx.font = '25px Nova Square';
     ctx.fillStyle = '#FFF';
     ctx.textAlign = 'right';
-    ctx.fillText('00100020', 605, 25);
+    var curScore = '00000000' + this.scoreManager.curScore.toString()
+    ctx.fillText(curScore.slice(-8), alignRight, 25);
+
+    //draw combo
+    ctx.font = '15px Nova Square';
+    ctx.textAlign = 'left';
+    ctx.fillText('x', 10, 505);
+    ctx.font = '25px Nova Square';
+    ctx.fillText(this.scoreManager.curMultiplier.toString(), 20, 505);
 
     //percentage
     ctx.font = '15px Nova Square';
-    ctx.fillText((this.accuracy * 100).toFixed(2) + '%', 605, 40);
+    ctx.textAlign = 'right';
+    ctx.fillText((this.scoreManager.curAcc * 100).toFixed(2) + '%', alignRight, 40);
 
     //completion
-    var cLeft = 530;
+    var cLeft = Math.round(this.maxUIWidth - 82);
     var cTop = 35;
     var endTime;
     var isCCW = self.audio.currentTime * 1000 < self.playableTime.start;
@@ -173,6 +213,9 @@ Engine.prototype = {
     var self = this;
     console.log(self.metaData);
     console.log(self.songData);
+
+    self.curNote = 0;
+    self.statusQueue = [];
     //queues for different stages of notes
     self.entranceQueue = {
       start: 0,
@@ -187,7 +230,7 @@ Engine.prototype = {
       end: 0
     };
     console.log(self.audio);
-    self.audio.volume = 0.5;
+    self.audio.volume = 0.0;
     self.audio.currentTime = 20;
     //26.5
     self.audio.play();
@@ -199,7 +242,7 @@ Engine.prototype = {
 
     if (self.debug.path) {
       self.c.sliderCircle.save();
-      self.c.sliderCircle.strokeStyle = '#ffffff';
+      self.c.sliderCircle.strokeStyle = '#ffffff'; 
       _.forEach(posArr, function(val) {
         self.c.sliderCircle.beginPath();
         self.c.sliderCircle.arc(val.x, val.y, 4, 0, Math.PI * 2);
@@ -232,6 +275,76 @@ Engine.prototype = {
         progress
     }
   },
+  checkClick: function () {
+    function dist(x1, y1, x2, y2) {
+      return Math.sqrt( Math.pow((x1-x2), 2) + Math.pow((y1-y2), 2) );
+    }
+    var self = this;  
+    var clickThresh = 100;
+    var distThresh = self.circleSize * 7
+    var curTime = self.audio.currentTime * 1000;
+
+    //Cursor pos
+    var cursorX = (self.cursorPos.x - self.cursorXOffset - 50 * self.scale)/ self.scale;
+    var cursorY = (self.cursorPos.y - 90 * self.scale) / self.scale;
+    
+    //get curnote
+    var curQueue;
+
+    if (self.playQueue.start != self.playQueue.end) {
+      curQueue = self.playQueue;
+    } else if (self.entranceQueue.start != self.entranceQueue.end){
+      curQueue = self.entranceQueue;
+    } else {
+      return;
+    }
+
+    var curNote = self.songData[curQueue.start];
+
+    //get note position
+    var noteX;
+    var noteY;
+
+    if (curNote.type == null) {
+      noteX = curNote.x;
+      noteY = curNote.y;
+    } else {
+      if (curNote.type === 'bezier') {
+        noteX = curNote.points[0][0].x;
+        noteY = curNote.points[0][0].y;
+      } else {
+        noteX = curNote.points[0].x;
+        noteY = curNote.points[0].y;
+      }
+    }
+    var clickOffset = Math.abs(curNote.time - curTime);
+    var curStatus = {
+      x: noteX,
+      y: noteY,
+      state: 0
+    };
+    //console.log('%f %f', dist(noteX, noteY, cursorX, cursorY), distThresh);
+    if (dist(noteX, noteY, cursorX, cursorY) <= distThresh) {
+      if (clickOffset <= clickThresh * 2 / 3) {
+        self.scoreManager.addNote(300);
+        curStatus.status = 300;
+        self.curNote++;
+      } else if (clickOffset <= clickThresh * 5 / 6){
+        self.scoreManager.addNote(100);
+        curStatus.status = 100;
+      } else if (clickOffset <= clickThresh) {
+        self.scoreManager.addNote(50);
+        curStatus.status = 50;
+      } else {
+        self.scoreManager.addNote(0);
+        curStatus.status = 0;
+      }
+      self.statusQueue.push(curStatus);
+    } else {
+    }
+      
+
+  },
   render: function() {
     var self = this;
     var noteC = self.c.note;
@@ -240,14 +353,18 @@ Engine.prototype = {
     self.c.note.clearRect(0, 0, scaledArea, scaledArea);
     self.c.sliderCircle.clearRect(0, 0, scaledArea, scaledArea);
     self.c.buffer.clearRect(0, 0, scaledArea, scaledArea);
+    self.c.ui.clearRect(0, 0, self.maxUIWidth * self.scale, scaledArea);
+    self.c.clickStatus.clearRect(0, 0, scaledArea, scaledArea);
+
+    self.c.cursorArea.clearRect(0, 0, self.root.width(), self.root.height());
+    drawCursor(self.cursorPos.x, self.cursorPos.y, self.c.cursorArea);
 
     _.each(self.c, function(v, k) {
       v.save();
       if (k === 'note' || k === 'sliderCircle' ||
-        k ===
-        'buffer') {
+        k === 'buffer' || k === 'clickStatus') {
         if (k === 'buffer' || k === 'sliderCircle' || k ===
-          'cursorArea') {
+          'cursorArea' || k === 'clickStatus') {
           v.translate(50 * self.scale, 90 * self.scale);
           v.scale(self.scale, self.scale);
         }
@@ -255,6 +372,9 @@ Engine.prototype = {
         v.scale(self.scale, self.scale);
       }
     });
+
+    //ticks health
+    self.scoreManager.tick(0.1);
 
     //sets UI layer
     self.c.ui.clearRect(0, 0, self.maxArea, self.maxArea);
@@ -269,6 +389,11 @@ Engine.prototype = {
 
     var curTime = self.audio.currentTime * 1000;
 
+    //cursor tests
+    // var testCX = (self.cursorPos.x - self.cursorXOffset - 50 * self.scale)/self.scale;
+    // var testCY = (self.cursorPos.y - 90 * self.scale) /self.scale;
+    // drawCircle(testCX, testCY, 0, 10, '#39CCCC', false, self.c.sliderCircle);
+    
     //configure entrance queue
     while (true) {
       var curNoteTime = self.songData[self.entranceQueue.end].time;
@@ -310,6 +435,9 @@ Engine.prototype = {
         self.playQueue.start++;
         // pushes into exit queue
         self.exitQueue.end++;
+        if (self.curNote === self.exitQueue.end - 1) {
+          self.curNote++;
+        }
       } else {
         break;
       }
@@ -490,11 +618,41 @@ Engine.prototype = {
       if (self.debug.lifecycle) drawStatusCircle(curNote, '#FF4136', i);
     }
 
+    //renders click status
+    _.forEach(self.statusQueue, function (el, i) {
+      var curOp = 1;
+      if (el.state <= 10) {
+        curOp = el.state / 10;
+      } else if (el.state >= 50) {
+        curOp = 1 - ((el.state - 50) / 15);
+      }
+
+      el.state++;
+
+      //console.log(el.state);
+      drawNoteStatus(el.status, el.x, el.y, curOp, self.c.clickStatus);
+    });
+
+    while (self.statusQueue.length > 0 && self.statusQueue[0].state > 65) {
+      self.statusQueue.shift();
+    }
+
     //clears canvas
     _.each(self.c, function(v, k) {
       v.restore();
     });
 
+    //fps check
+    if(!lastCalledTime) {
+     lastCalledTime = Date.now();
+     fps = 0;
+    } else {
+      delta = (new Date().getTime() - lastCalledTime)/1000;
+      lastCalledTime = Date.now();
+      //console.log(1/delta);
+    }
+
+    
     requestAnimationFrame(self.render.bind(self));
   }
 };

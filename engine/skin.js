@@ -2,6 +2,31 @@ var mainOpacity = 1;
 var minorOpacity = 0.7;
 var borderWidth = 8;
 
+function drawNoteStatus(accStatus, x, y, opacity, ctx) {
+  if (accStatus === 300) {
+    return;
+  }
+  ctx.save();
+
+  ctx.globalAlpha = opacity;
+  var color;
+  var status = accStatus.toString();
+
+  if (accStatus === 300) {
+    color = '#01FF70';
+  } else if (accStatus === 100) {
+    color = '#01FF70';
+  } else if (accStatus === 50) {
+    color = '#0074D9';
+  } else {
+    color = '#FF4136';
+    status = 'x';
+  }
+  ctx.fillStyle = color;
+  ctx.fillText(status.toString(), x, y);
+  ctx.restore();
+}
+
 function drawCursor(x, y, ctx) {
   ctx.save();
 
