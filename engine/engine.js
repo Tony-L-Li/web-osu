@@ -89,7 +89,7 @@ function Engine(container, songData, songUrl) {
   //METADATA
   this.ar = 9;
   this.arConst = 30;
-  this.circleSize = this.metaData.CircleSize * 7;
+  this.circleSize = (4 + (4 - this.metaData.CircleSize)) * 7;
 
   //CURSOR
   document.addEventListener('mousemove', onMouseUpdate, false);
@@ -100,6 +100,13 @@ function Engine(container, songData, songUrl) {
   var scaledArea = self.maxArea * self.scale;
 
   function onKeyDown(e) {
+    if(e.which == 27){
+      self.audio.pause();
+      self.audio.src = '';
+      self.audio.load();
+      self.callback();
+    }
+
     if (e.keyCode === self.keyMap.clickA.key && !self.keyMap.clickA.isHit) {
       self.keyMap.clickA.isHit = true;
       self.checkClick();
@@ -138,6 +145,9 @@ Engine.prototype = {
   debug: {
     lifecycle: false,
     path: false
+  },
+  callback: function() {
+    return;
   },
   cursorPos: {
     x: 0,
@@ -204,6 +214,9 @@ Engine.prototype = {
     ctx.textAlign = 'right';
     ctx.fillText((this.scoreManager.curAcc * 100).toFixed(2) + '%', alignRight, 40);
 
+    //temp esc text
+    ctx.fillText('"esc" to exit', alignRight, 505);
+
     //completion
     var cLeft = Math.round(this.maxUIWidth - 82);
     var cTop = 35;
@@ -233,10 +246,12 @@ Engine.prototype = {
     ctx.arc(cLeft, cTop, 0.5, 0, 2 * Math.PI);
     ctx.stroke();
   },
-  start: function() {
+  start: function(callback) {
     var self = this;
     console.log(self.metaData);
     console.log(self.songData);
+
+    self.callback = callback;
 
     self.curNote = 0;
     self.statusQueue = [];
