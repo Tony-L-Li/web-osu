@@ -1,0 +1,16 @@
+html, body {
+  padding: 0;
+  margin: 0;
+  background-color: #333;
+}
+
+.game {
+  position: absolute;
+  width:100%;
+  height:100%;
+  cursor: none;
+}
+
+.game-canvas {
+  position: absolute;
+}
